@@ -563,4 +563,4 @@ typedef struct {
 }
 #endif
 
-#endif // !_inc_WED_AMIDEFS_H_60630759174227095__
+#endif // include guard

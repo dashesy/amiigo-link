@@ -58,7 +58,7 @@ COMMON_OBJS := $(patsubst %.cpp, .obj/%.o, $(notdir $(COMMON_SRC)))
 	@echo creating $@ ...
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
     
-# This will make the cbsdk shared library
+# This will make the output
 $(BinDir)/$(OUTPUTBIN): $(COMMON_OBJS)
 	@echo building output ...
 	$(CC) -o $(OUTPUTBIN) $(COMMON_OBJS) $(LFLAGS)
