@@ -258,7 +258,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 		return 0;
 	}
 
-	// TODO: Collin: I assume each packet starts a log entry (no breaks), could be confusing if otherwise because of sequence numbers
+	// Each packet starts a log entry
 
 	WEDLogTimestamp logTime;
 	WEDLogAccel logAccel;
@@ -932,7 +932,7 @@ char getch() {
 	char buf = 0;
 	struct termios old = {0};
 	if (tcgetattr(0, &old) < 0)
-		perror("tcsetattr()");
+		perror("tcgetattr()");
 	old.c_lflag &= ~ICANON;
 	old.c_lflag &= ~ECHO;
 	old.c_cc[VMIN] = 1;
@@ -1005,6 +1005,14 @@ int main(int argc, char **argv)
 	if (g_sock < -1)
 	{
 		fprintf(stderr, "bt_io_connect (%d)\n", errno);
+		return -1;
+	}
+	// Increase socket's receive buffer
+	int opt_rcvbuf = (2 * 1024 * 1024);
+	ret = setsockopt(g_sock, SOL_SOCKET, SO_RCVBUF, (char *)&opt_rcvbuf, sizeof(int));
+	if (ret)
+	{
+		fprintf(stderr, "setsockopt SO_RCVBUF (%d)\n", errno);
 		return -1;
 	}
 
