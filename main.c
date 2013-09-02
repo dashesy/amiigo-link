@@ -785,11 +785,11 @@ int set_input_file(const char * szName)
 			g_config_ls.adc_ref = (uint8_t)atoi(szVal);
 		}
 		// ---------------- Accel ---------------------
-		else if (strcasecmp(szParam, "ls_accel_slow_rate") == 0)
+		else if (strcasecmp(szParam, "accel_slow_rate") == 0)
 		{
 			g_config_accel.slow_rate = WEDConfigRateParam((uint32_t)atoi(szVal));
 		}
-		else if (strcasecmp(szParam, "ls_accel_fast_rate") == 0)
+		else if (strcasecmp(szParam, "accel_fast_rate") == 0)
 		{
 			g_config_accel.fast_rate = WEDConfigRateParam((uint32_t)atoi(szVal));
 		}
