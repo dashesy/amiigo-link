@@ -726,69 +726,70 @@ int set_input_file(const char * szName)
 	while (fscanf(fp, "%s %s", szParam, szVal) != EOF)
 	{
 		//---------- Light ----------------------------
-		if (strcasecmp(szParam, "on_time") == 0)
+		if (strcasecmp(szParam, "ls_on_time") == 0)
 		{
 			g_config_ls.on_time = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "off_time") == 0)
+		else if (strcasecmp(szParam, "ls_off_time") == 0)
 		{
 			g_config_ls.off_time = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "fast_interval") == 0)
+		else if (strcasecmp(szParam, "ls_fast_interval") == 0)
 		{
-			// Seconds between samples
+			// Seconds between samples in fast mode
 			g_config_ls.fast_interval = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "slow_interval") == 0)
+		else if (strcasecmp(szParam, "ls_slow_interval") == 0)
 		{
+			// Seconds between samples in slow mode
 			g_config_ls.slow_interval = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "duration") == 0)
+		else if (strcasecmp(szParam, "ls_duration") == 0)
 		{
 			g_config_ls.duration = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "gain") == 0)
+		else if (strcasecmp(szParam, "ls_gain") == 0)
 		{
 			g_config_ls.gain = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "leds") == 0)
+		else if (strcasecmp(szParam, "ls_leds") == 0)
 		{
 			g_config_ls.leds = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "led_drv") == 0)
+		else if (strcasecmp(szParam, "ls_led_drv") == 0)
 		{
 			g_config_ls.led_drv = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "norecal") == 0)
+		else if (strcasecmp(szParam, "ls_norecal") == 0)
 		{
 			g_config_ls.norecal = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "debug") == 0)
+		else if (strcasecmp(szParam, "ls_debug") == 0)
 		{
 			g_config_ls.debug = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "samples") == 0)
+		else if (strcasecmp(szParam, "ls_samples") == 0)
 		{
 			g_config_ls.samples = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "dac_ref") == 0)
+		else if (strcasecmp(szParam, "ls_dac_ref") == 0)
 		{
 			g_config_ls.dac_ref = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "adc_bits") == 0)
+		else if (strcasecmp(szParam, "ls_adc_bits") == 0)
 		{
 			g_config_ls.adc_bits = (uint8_t)atoi(szVal);
 		}
-		else if (strcasecmp(szParam, "adc_ref") == 0)
+		else if (strcasecmp(szParam, "ls_adc_ref") == 0)
 		{
 			g_config_ls.adc_ref = (uint8_t)atoi(szVal);
 		}
 		// ---------------- Accel ---------------------
-		else if (strcasecmp(szParam, "accel_slow_rate") == 0)
+		else if (strcasecmp(szParam, "ls_accel_slow_rate") == 0)
 		{
 			g_config_accel.slow_rate = WEDConfigRateParam((uint32_t)atoi(szVal));
 		}
-		else if (strcasecmp(szParam, "accel_fast_rate") == 0)
+		else if (strcasecmp(szParam, "ls_accel_fast_rate") == 0)
 		{
 			g_config_accel.fast_rate = WEDConfigRateParam((uint32_t)atoi(szVal));
 		}
