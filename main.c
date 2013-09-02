@@ -65,20 +65,27 @@ char g_szVersion[512] = "Unknown";
 
 
 enum {
-	AMIIGO_CMD_NONE = 0, // Just to do a connection status test
-	AMIIGO_CMD_DOWNLOAD, // Download all the logs
+	AMIIGO_CMD_NONE = 0,      // Just to do a connection status test
+	AMIIGO_CMD_RESET_LOGS,    // Reset log buffer
+	AMIIGO_CMD_RESET_CPU,     // Reset CPU
+	AMIIGO_CMD_RESET_CONFIGS, // Reset configurations to default
+	AMIIGO_CMD_DOWNLOAD,      // Download all the logs
+	AMIIGO_CMD_CONFIGLS,      // Configure light sensors
+	AMIIGO_CMD_CONFIGACCEL,   // Configure acceleration sensors
 } g_cmd = AMIIGO_CMD_NONE;
 
 WEDVersion g_ver; // Firmware version
-WEDConfig g_config; // Config packet to use along with the command
+WEDConfigLS g_config_ls; // Light configuration
+WEDConfigAccel g_config_accel; // Acceleration sensors configuration
 
 WEDStatus g_status; // Device status
 
 int g_sock; // Link socket
 size_t g_buflen; // Uplink MTU
+uint32_t g_total_logs = 0; // Total number of logs
 
 #define MAX_LOG_ENTRIES (WED_LOG_ACCEL_CMP + 1)
-FILE * g_logFile[10] = {NULL};
+FILE * g_logFile[MAX_LOG_ENTRIES] = {NULL};
 
 enum DISCOVERY_STATE {
 	STATE_NONE = 0,
@@ -103,7 +110,7 @@ int dump_buffer(uint8_t * buf, ssize_t buflen)
 }
 
 // Start downloading the log packets
-int start_download()
+int exec_download()
 {
 	g_state = STATE_DOWNLOAD; // Download in progress
 
@@ -114,12 +121,117 @@ int start_download()
 	uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
 	if (handle == 0)
 		return -1; // Not ready yet
-	printf("downloading ...\n");
-	WEDConfig config_notify; // Config for notify
-	config_notify.config_type = WED_CFG_LOG;
-	config_notify.log.flags = WED_CONFIG_LOG_DL_EN;
+	printf("\n\n");
+	 // Config for notify
+	WEDConfig config;
+	config.config_type = WED_CFG_LOG;
+	config.log.flags = WED_CONFIG_LOG_DL_EN | WED_CONFIG_LOG_CMP_EN;
 
-	plen = enc_write_cmd(handle, (uint8_t *)&config_notify, sizeof(config_notify), buf, g_buflen);
+	plen = enc_write_cmd(handle, (uint8_t *)&config, sizeof(config), buf, g_buflen);
+
+	ssize_t len = send(g_sock, buf, plen, 0);
+
+	free(buf);
+	if (len < 0 || len != plen)
+	{
+		return -1;
+	}
+	return 0;
+}
+
+// Start configuration of light sensors
+int exec_configls()
+{
+	g_state = STATE_COUNT; // Done with command
+
+	uint8_t * buf = malloc(g_buflen);
+    memset(buf, 0, g_buflen);
+
+	uint16_t plen;
+	uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+	if (handle == 0)
+		return -1; // Not ready yet
+	WEDConfig config;
+	config.config_type = WED_CFG_LS;
+	config.lightsensor = g_config_ls;
+
+	plen = enc_write_cmd(handle, (uint8_t *)&config, sizeof(config), buf, g_buflen);
+
+	ssize_t len = send(g_sock, buf, plen, 0);
+
+	free(buf);
+	if (len < 0 || len != plen)
+	{
+		return -1;
+	}
+	return 0;
+}
+
+// Start configuration of accel sensors
+int exec_configaccel()
+{
+	g_state = STATE_COUNT; // Done with command
+
+	uint8_t * buf = malloc(g_buflen);
+    memset(buf, 0, g_buflen);
+
+	uint16_t plen;
+	uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+	if (handle == 0)
+		return -1; // Not ready yet
+	WEDConfig config;
+	config.config_type = WED_CFG_ACCEL;
+	config.accel = g_config_accel;
+
+	plen = enc_write_cmd(handle, (uint8_t *)&config, sizeof(config), buf, g_buflen);
+
+	ssize_t len = send(g_sock, buf, plen, 0);
+
+	free(buf);
+	if (len < 0 || len != plen)
+	{
+		return -1;
+	}
+	return 0;
+}
+
+// Reset config, or CPU or log buffer
+int exec_reset()
+{
+	g_state = STATE_COUNT; // Done with command
+
+	uint8_t * buf = malloc(g_buflen);
+    memset(buf, 0, g_buflen);
+
+	uint16_t plen;
+	uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+	if (handle == 0)
+		return -1; // Not ready yet
+	WEDConfigMaint config_maint;
+	memset(&config_maint, 0, sizeof(config_maint));
+	switch (g_cmd)
+	{
+	case AMIIGO_CMD_RESET_CPU:
+		printf("Restarting the device ...\n");
+		config_maint.command = WED_MAINT_RESET;
+		break;
+	case AMIIGO_CMD_RESET_LOGS:
+		printf("Clearing the logs ...\n");
+		config_maint.command = WED_MAINT_CLEAR_LOG;
+		break;
+	case AMIIGO_CMD_RESET_CONFIGS:
+		printf("Resetign the configurations to default ...\n");
+		config_maint.command = WED_MAINT_RESET_CONFIG;
+		break;
+	default:
+		return -1;
+		break;
+	}
+	WEDConfig config;
+	config.config_type = WED_CFG_MAINT;
+	config.maint = config_maint;
+
+	plen = enc_write_cmd(handle, (uint8_t *)&config, sizeof(config), buf, g_buflen);
 
 	ssize_t len = send(g_sock, buf, plen, 0);
 
@@ -159,6 +271,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 	// TODO: use date-time to avoid overwriting logs
 	// TODO: check packet sizes
 
+	uint16_t val16;
 	int field_count;
 	int packet_len;
 	int payload = 3; // Payload starting position
@@ -169,6 +282,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 	WED_LOG_TYPE log_type = buf[payload] & 0x0F;
 	while (payload < buflen)
 	{
+		g_total_logs++; // Total number of log points downloaded so far
 		switch(log_type)
 		{
 		case WED_LOG_TIME:
@@ -217,7 +331,6 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			payload += packet_len;
 			break;
 		case WED_LOG_LS_DATA:
-			field_count = ((buf[payload + 1] & 0xFF) >> 14) + 1;
 			// TODO: check data integrity
 			if (g_logFile[log_type] == NULL)
 			{
@@ -226,8 +339,12 @@ int process_download(uint8_t * buf, ssize_t buflen)
 
 			packet_len = WEDLogLSDataSize(&buf[payload]);
 			logLSData.type = log_type;
-			for (i = 0; i < field_count; ++i)
-				logLSData.val[i] = buf[payload + 1 + i];
+			val16 = att_get_u16(&buf[payload + 1]);
+			field_count = ((val16 & 0xFFFF) >> 14) + 1;
+			logLSData.val[0] = val16 & 0x3FFF;
+			for (i = 1; i < field_count; ++i)
+				logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
+
 			for (i = 0; i < field_count; ++i)
 			{
 				fprintf(g_logFile[log_type], "%d", logLSData.val[i]);
@@ -274,7 +391,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			packet_len = WEDLogAccelCmpSize(&buf[payload]);
 			logAccelCmp.type = log_type;
 			logAccelCmp.count_bits = buf[payload + 1];
-			// FIXME: this is not done yet
+			// FIXME: this is not implemented yet
 			// Move forward
 			payload += packet_len;
 			fprintf(g_logFile[log_type], "%u\n", logAccelCmp.count_bits);
@@ -291,6 +408,10 @@ int process_download(uint8_t * buf, ssize_t buflen)
 		log_type = buf[payload];
 	}
 
+	printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_total_logs, g_status.num_log_entries, (100.0 * g_total_logs) / g_status.num_log_entries);
+	fflush(stdout);
+	if (g_total_logs >= g_status.num_log_entries)
+		g_state = STATE_COUNT; // Done with command
 	return 0;
 }
 
@@ -300,7 +421,18 @@ int process_command()
 	switch (g_cmd)
 	{
 	case AMIIGO_CMD_DOWNLOAD:
-		return start_download();
+		return exec_download();
+		break;
+	case AMIIGO_CMD_CONFIGLS:
+		return exec_configls();
+		break;
+	case AMIIGO_CMD_CONFIGACCEL:
+		return exec_configaccel();
+		break;
+	case AMIIGO_CMD_RESET_CPU:
+	case AMIIGO_CMD_RESET_LOGS:
+	case AMIIGO_CMD_RESET_CONFIGS:
+		return exec_reset();
 		break;
 	default:
 		return 0;
@@ -399,20 +531,22 @@ int process_status(uint8_t * buf, ssize_t buflen)
 	if (buflen < sizeof(WEDStatus) + 1)
 		return -1;
 	uint8_t * pdu = &buf[1];
-	g_status.num_log_entries = att_get_u32(&pdu[1]);
+	g_status.num_log_entries = att_get_u32(&pdu[0]);
 	g_status.battery_level = pdu[4];
 	g_status.status = pdu[5];
 	g_status.cur_time = att_get_u32(&pdu[6]);
 	memcpy(&g_status.cur_tag, &pdu[10], WED_TAG_SIZE);
 
-	printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %2.1f%%\t Time: %u\t",
+	printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %2.1f%%\t Time: %3.3f s\t",
 			g_szBuild, g_szVersion,
-			g_status.num_log_entries, g_status.battery_level * 100.0 / 255.0, g_status.cur_time);
+			g_status.num_log_entries, g_status.battery_level * 100.0 / 255.0, g_status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC);
 
 	if (g_status.status & STATUS_UPDATE)
 		printf(" (Updating) ");
 	if (g_status.status & STATUS_FASTMODE)
 		printf(" (Fast Mode) ");
+	else
+		printf(" (Slow Mode) ");
 	if (g_status.status & STATUS_CHARGING)
 		printf(" (Charging) ");
 	printf("\n");
@@ -423,6 +557,7 @@ int process_status(uint8_t * buf, ssize_t buflen)
 // Process incoming raw data
 int process_data(uint8_t * buf, ssize_t buflen)
 {
+	int ret = 0;
 	struct att_data_list *list = NULL;
 	uint16_t handle = 0;
 	uint8_t err = ATT_ECODE_IO;
@@ -511,7 +646,7 @@ int process_data(uint8_t * buf, ssize_t buflen)
 				g_state = STATE_COUNT;
 			} else {
 				// Now that we have status (e.g. number of logs) can go and perform other commands
-				process_command();
+				ret = process_command();
 			}
 			break;
 		default:
@@ -527,7 +662,7 @@ int process_data(uint8_t * buf, ssize_t buflen)
 	if (list != NULL)
 		att_data_list_free(list);
 
-	return 0;
+	return ret;
 }
 
 int set_command(const char * szName)
@@ -535,6 +670,26 @@ int set_command(const char * szName)
 	if (strcasecmp(szName, "download") == 0)
 	{
 		g_cmd = AMIIGO_CMD_DOWNLOAD;
+	}
+	else if (strcasecmp(szName, "resetcpu") == 0)
+	{
+		g_cmd = AMIIGO_CMD_RESET_CPU;
+	}
+	else if (strcasecmp(szName, "resetlogs") == 0)
+	{
+		g_cmd = AMIIGO_CMD_RESET_LOGS;
+	}
+	else if (strcasecmp(szName, "resetconfigs") == 0)
+	{
+		g_cmd = AMIIGO_CMD_RESET_CONFIGS;
+	}
+	else if (strcasecmp(szName, "configls") == 0)
+	{
+		g_cmd = AMIIGO_CMD_CONFIGLS;
+	}
+	else if (strcasecmp(szName, "configaccel") == 0)
+	{
+		g_cmd = AMIIGO_CMD_CONFIGACCEL;
 	}
 	else if (strcasecmp(szName, "status") == 0)
 	{
@@ -558,6 +713,98 @@ int set_device(const char * szName)
 	return 0;
 }
 
+int set_input_file(const char * szName)
+{
+	FILE * fp = fopen(szName, "r");
+	if (fp == NULL)
+	{
+		fprintf(stderr, "Configuration file (%s) not accessible!\n", szName);
+		return -1;
+	}
+	char szParam[256];
+	char szVal[256];
+	while (fscanf(fp, "%s %s", szParam, szVal) != EOF)
+	{
+		//---------- Light ----------------------------
+		if (strcasecmp(szParam, "on_time") == 0)
+		{
+			g_config_ls.on_time = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "off_time") == 0)
+		{
+			g_config_ls.off_time = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "fast_interval") == 0)
+		{
+			// Seconds between samples
+			g_config_ls.fast_interval = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "slow_interval") == 0)
+		{
+			g_config_ls.slow_interval = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "duration") == 0)
+		{
+			g_config_ls.duration = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "gain") == 0)
+		{
+			g_config_ls.gain = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "leds") == 0)
+		{
+			g_config_ls.leds = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "led_drv") == 0)
+		{
+			g_config_ls.led_drv = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "norecal") == 0)
+		{
+			g_config_ls.norecal = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "debug") == 0)
+		{
+			g_config_ls.debug = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "samples") == 0)
+		{
+			g_config_ls.samples = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "dac_ref") == 0)
+		{
+			g_config_ls.dac_ref = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "adc_bits") == 0)
+		{
+			g_config_ls.adc_bits = (uint8_t)atoi(szVal);
+		}
+		else if (strcasecmp(szParam, "adc_ref") == 0)
+		{
+			g_config_ls.adc_ref = (uint8_t)atoi(szVal);
+		}
+		// ---------------- Accel ---------------------
+		else if (strcasecmp(szParam, "accel_slow_rate") == 0)
+		{
+			g_config_accel.slow_rate = WEDConfigRateParam((uint32_t)atoi(szVal));
+		}
+		else if (strcasecmp(szParam, "accel_fast_rate") == 0)
+		{
+			g_config_accel.fast_rate = WEDConfigRateParam((uint32_t)atoi(szVal));
+		}
+		else
+		{
+			fprintf(stderr, "Configuration parameter (%s) not recognized!\n", szName);
+			fclose(fp);
+			return -1;
+		}
+	}
+
+	fclose(fp);
+
+	return 0;
+}
+
 void show_usage_screen(void)
 {
 	printf ("\n");
@@ -570,10 +817,18 @@ void show_usage_screen(void)
             "  --b, --device uuid|name \n"
             "    Amiigo device to connect to.\n"
     		"    Can specify a name or UUID\n"
+    		"    Example: --b 90:59:AF:04:32:82\n"
             "  --command cmd \n"
-            "    Command to run on device:\n"
+            "    Command to execute:\n"
     		"       status: (default) perform device discovery\n"
             "       download: download the logs\n"
+            "       configls: configure light sensor\n"
+            "       configaccel: configure acceleration sensors\n"
+            "       resetlogs: reset buffered logs\n"
+            "       resetcpu: restart the board\n"
+            "       resetconfigs: set all configs to default\n"
+            "  --input file\n"
+    		"    Input configuration file to use for given command.\n"
             "  --help         Display this usage screen\n"
             );
     printf("amlink is Copyright Amiigo inc\n");
@@ -593,7 +848,8 @@ static void do_command_line(int argc, char * const argv[])
             {"adapter", 1, 0, 'i'},
             {"b", 1, 0, 'b'},
             {"device", 1, 0, 'b'},
-            {"command", 1, 0, 'c'},
+            {"command", 1, 0, 'x'},
+            {"input", 1, 0, 'f'},
             {"help", 0, 0, '?'},
             {0, 0, 0, 0}
         };
@@ -625,8 +881,13 @@ static void do_command_line(int argc, char * const argv[])
                 exit(1);
             break;
 
-        case 'c':
+        case 'x':
             if (set_command(optarg))
+                exit(1);
+            break;
+
+        case 'f':
+            if (set_input_file(optarg))
                 exit(1);
             break;
 
@@ -697,7 +958,8 @@ int main(int argc, char **argv)
 	struct set_opts opts;
 	memset(&opts, 0, sizeof(opts));
 
-	memset(&g_config, 0, sizeof(g_config));
+	memset(&g_config_ls, 0, sizeof(g_config_ls));
+	memset(&g_config_accel, 0, sizeof(g_config_accel));
 	memset(&g_status, 0, sizeof(g_status));
 
 	// Set parameters based on command line
@@ -705,7 +967,7 @@ int main(int argc, char **argv)
 
 	if (strlen(g_dst) == 0)
 	{
-		fprintf(stderr, "Device address must be specified (e.g. --b 90:59:AF:04:32:82)\n");
+		fprintf(stderr, "Device address must be specified (use --help to find the usag)\n");
 		return -1;
 	}
 	if (str2ba(g_dst, &opts.dst))
@@ -819,7 +1081,9 @@ int main(int argc, char **argv)
     		if (len < 0)
     			break;
     		// Process incoming data
-    		process_data(buf, buflen);
+    		ret = process_data(buf, buflen);
+    		if (ret)
+    			fprintf(stderr, "main process_data() error\n");
     		if (g_state == STATE_COUNT)
     			break; // Done the the command
     	}
