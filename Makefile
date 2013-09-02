@@ -44,6 +44,7 @@ CFLAGS := -Wall $(INCLUDEDIRS)
 COMMON_SRC := ./main.c \
               ./btio.c \
               ./att.c \
+              ./hcitool.c \
 
 COMMON_OBJS := $(patsubst %.c, .obj/%.o, $(notdir $(COMMON_SRC)))
 
