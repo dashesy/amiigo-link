@@ -41,13 +41,25 @@ INCLUDEDIRS := -I.
 CFLAGS := -Wall $(INCLUDEDIRS)
 
 # common sources
-COMMON_SRC := ./main.cpp \
+COMMON_SRC := ./main.c \
               ./btio.c \
               ./att.c \
 
+COMMON_OBJS := $(patsubst %.c, .obj/%.o, $(notdir $(COMMON_SRC)))
+
 VPATH := $(sort  $(dir $(COMMON_SRC)))
 
-COMMON_OBJS := $(patsubst %.cpp, .obj/%.o, $(notdir $(COMMON_SRC)))
+all: prepare ./$(OUTPUTBIN)
+
+.PHONY: prepare
+prepare:
+	@mkdir -p .obj
+
+.PHONY: clean
+clean:
+	rm -rf .obj
+	rm  -f ./$(OUTPUTBIN)
+
 
 # the "common" object files
 .obj/%.o : %.cpp Makefile
@@ -59,7 +71,7 @@ COMMON_OBJS := $(patsubst %.cpp, .obj/%.o, $(notdir $(COMMON_SRC)))
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
     
 # This will make the output
-$(BinDir)/$(OUTPUTBIN): $(COMMON_OBJS)
+./$(OUTPUTBIN): $(COMMON_OBJS)
 	@echo building output ...
 	$(CC) -o $(OUTPUTBIN) $(COMMON_OBJS) $(LFLAGS)
     
