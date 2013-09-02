@@ -19,6 +19,7 @@
 
 #include "btio.h"
 #include "att.h"
+#include "hcitool.h"
 #include "amidefs.h"
 
 // Device and interface to use
@@ -815,10 +816,13 @@ void show_usage_screen(void)
             "  --verbose\n"
             "  --i, --adapter uuid|hci<N>\n"
             "    Interface adapter to use (default is hci0)\n"
-            "  --b, --device uuid|name \n"
+            "  --b, --device uuid \n"
             "    Amiigo device to connect to.\n"
-    		"    Can specify a name or UUID\n"
+    		"    Can specify a UUID\n"
     		"    Example: --b 90:59:AF:04:32:82\n"
+    		"    Use --lescan to find the UUID list\n"
+            "  --lescan, -l \n"
+    		"    Low energy scan (needs root priviledge)\n"
             "  --command cmd \n"
             "    Command to execute:\n"
     		"       status: (default) perform device discovery\n"
@@ -845,6 +849,7 @@ static void do_command_line(int argc, char * const argv[])
         static struct option long_options[] =
         {
             {"verbose", 0, 0, 'V'},
+            {"lescan", 0, 0, 'l'},
             {"i", 1, 0, 'i'},
             {"adapter", 1, 0, 'i'},
             {"b", 1, 0, 'b'},
@@ -855,7 +860,7 @@ static void do_command_line(int argc, char * const argv[])
             {0, 0, 0, 0}
         };
 
-        c = getopt_long(argc, argv, "V?", long_options, &option_index);
+        c = getopt_long(argc, argv, "Vl?", long_options, &option_index);
         if (c == -1)
             break;
 
@@ -866,6 +871,11 @@ static void do_command_line(int argc, char * const argv[])
             if (optarg)
                 printf (" with arg %s", optarg);
             printf ("unsupported\n");
+            break;
+
+        case 'l':
+        	do_lescan();
+        	exit(0);
             break;
 
         case 'V':
