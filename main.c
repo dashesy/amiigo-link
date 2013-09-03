@@ -457,7 +457,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			for (i = 0; i < field_count; ++i)
 			{
 				fprintf(g_logFile[log_type], "%u", logLSData.val[i]);
-				if (i < field_count)
+				if (i < field_count - 1)
 					fprintf(g_logFile[log_type], ",");
 			}
 			fprintf(g_logFile[log_type], "\n");
