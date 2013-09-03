@@ -23,6 +23,35 @@
 #include "hcitool.h"
 #include "amidefs.h"
 
+/******************************************************************************/
+typedef struct {
+	uint8* buf;
+	uint8 pos;
+} GetBits;
+/******************************************************************************/
+static inline void cmpGetBitsInit(GetBits* gb, void* buf) {
+
+	gb->buf = buf;
+	gb->pos = 0;
+}
+/******************************************************************************/
+static int8 cmpGetBits(GetBits* gb, uint8 nbits) {
+
+	int8 val = gb->buf[0] << gb->pos;
+
+	uint8 buf0bits = 8 - gb->pos;
+	if (buf0bits < nbits)
+		val |= gb->buf[1] >> buf0bits;
+
+	gb->pos += nbits;
+	if (gb->pos >= 8) {
+		gb->buf++;
+		gb->pos -= 8;
+	}
+
+	return val >> (8 - nbits);
+}
+
 // Device and interface to use
 //char g_dst[512] = "90:59:AF:04:32:F0";
 char g_dst[512] = "";
@@ -81,6 +110,12 @@ WEDConfigLS g_config_ls; // Light configuration
 WEDConfigAccel g_config_accel; // Acceleration sensors configuration
 
 WEDStatus g_status; // Device status
+
+// Soem log packets to keep their state
+WEDLogTag g_logTag;
+WEDLogTimestamp g_logTime;
+WEDLogAccel g_logAccel;
+WEDLogLSConfig g_logLSConfig;
 
 int g_sock; // Link socket
 size_t g_buflen; // Uplink MTU
@@ -283,22 +318,16 @@ int process_download(uint8_t * buf, ssize_t buflen)
 		return 0;
 	}
 
-	// Each packet starts a log entry
+	// Note: Each packet starts a log entry
 
-	WEDLogTimestamp logTime;
-	WEDLogAccel logAccel;
 	WEDLogAccelCmp logAccelCmp;
-	WEDLogLSConfig logLSConfig;
 	WEDLogLSData logLSData;
 	WEDLogTemp logTemp;
-	WEDLogTag logTag;
 
 	// TODO: use date-time to avoid overwriting logs
 	// TODO: check packet sizes
 	// TODO: check data integrity
 
-	uint16_t val16;
-	uint8_t field_count;
 	int packet_len;
 	int payload = 3; // Payload starting position
 	int seq_number = buf[payload] >> 4;
@@ -311,14 +340,18 @@ int process_download(uint8_t * buf, ssize_t buflen)
 		g_total_logs++; // Total number of log points downloaded so far
 		switch(log_type)
 		{
+		uint16_t val16;
+		uint8_t field_count, nbits;
+		uint8_t * pdu;
+
 		case WED_LOG_TIME:
 
 			// TODO: use this to split log files
 
-			packet_len = sizeof(logTime);
-			logTime.type = log_type;
-			logTime.timestamp = att_get_u32(&buf[payload + 1]);
-			logTime.fast_rate = buf[payload + 5];
+			packet_len = sizeof(g_logTime);
+			g_logTime.type = log_type;
+			g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
+			g_logTime.fast_rate = buf[payload + 5];
 
 			// Move forward
 			payload += packet_len;
@@ -330,11 +363,11 @@ int process_download(uint8_t * buf, ssize_t buflen)
 				fprintf(g_logFile[log_type], "x,y,z\n");
 			}
 
-			packet_len = sizeof(logAccel);
-			logAccel.type = log_type;
+			packet_len = sizeof(g_logAccel);
+			g_logAccel.type = log_type;
 			for (i = 0; i < 3; ++i)
-				logAccel.accel[i] = buf[payload + 1 + i];
-			fprintf(g_logFile[log_type], "%d,%d,%d\n", logAccel.accel[0], logAccel.accel[1], logAccel.accel[2]);
+				g_logAccel.accel[i] = buf[payload + 1 + i];
+			fprintf(g_logFile[log_type], "%d,%d,%d\n", g_logAccel.accel[0], g_logAccel.accel[1], g_logAccel.accel[2]);
 			// Move forward
 			payload += packet_len;
 			break;
@@ -345,14 +378,14 @@ int process_download(uint8_t * buf, ssize_t buflen)
 				fprintf(g_logFile[log_type], "dac_red,dac_ir,level_red,level_ir\n");
 			}
 
-			packet_len = sizeof(logLSConfig);
-			logLSConfig.type = log_type;
-			logLSConfig.dac_red = buf[payload + 1];
-			logLSConfig.dac_ir = buf[payload + 2];
-			logLSConfig.level_red = buf[payload + 3];
-			logLSConfig.level_ir = buf[payload + 4];
+			packet_len = sizeof(g_logLSConfig);
+			g_logLSConfig.type = log_type;
+			g_logLSConfig.dac_red = buf[payload + 1];
+			g_logLSConfig.dac_ir = buf[payload + 2];
+			g_logLSConfig.level_red = buf[payload + 3];
+			g_logLSConfig.level_ir = buf[payload + 4];
 			fprintf(g_logFile[log_type], "%u,%u,%u,%u\n",
-					logLSConfig.dac_red, logLSConfig.dac_ir, logLSConfig.level_red, logLSConfig.level_ir);
+					g_logLSConfig.dac_red, g_logLSConfig.dac_ir, g_logLSConfig.level_red, g_logLSConfig.level_ir);
 			// Move forward
 			payload += packet_len;
 			break;
@@ -400,13 +433,13 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			if (g_logFile[log_type] == NULL)
 				g_logFile[log_type] = fopen("./Tag.log", "w");
 
-			packet_len = sizeof(logTag);
-			logTag.type = log_type;
+			packet_len = sizeof(g_logTag);
+			g_logTag.type = log_type;
 			for (i = 0; i < 4; ++i)
-				logTag.tag[i] = buf[payload + 1 + i];
+				g_logTag.tag[i] = buf[payload + 1 + i];
 			for (i = 0; i < 4; ++i)
 			{
-				fprintf(g_logFile[log_type], "%u", logTag.tag[i]);
+				fprintf(g_logFile[log_type], "%u", g_logTag.tag[i]);
 				if (i < 4)
 					fprintf(g_logFile[log_type], ",");
 			}
@@ -415,31 +448,35 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			payload += packet_len;
 			break;
 		case WED_LOG_ACCEL_CMP:
-			// We must first get a normal accel logs
-			if (g_logFile[WED_LOG_ACCEL] == NULL)
-				break;
-
 			packet_len = WEDLogAccelCmpSize(&buf[payload]);
+			payload += packet_len;
+
 			logAccelCmp.type = log_type;
 			logAccelCmp.count_bits = buf[payload + 1];
 			field_count = (logAccelCmp.count_bits & 0xF) + 1;
-			val16 = 0;
+			nbits = 0;
 			switch ((logAccelCmp.count_bits & 0x70) >> 4)
 			{
 			case WED_LOG_ACCEL_CMP_3_BIT:
-				val16 = 3;
+				nbits = 3;
 				break;
 			case WED_LOG_ACCEL_CMP_4_BIT:
-				val16 = 4;
+				nbits = 4;
 				break;
 			case WED_LOG_ACCEL_CMP_5_BIT:
-				val16 = 5;
+				nbits = 5;
 				break;
 			case WED_LOG_ACCEL_CMP_6_BIT:
-				val16 = 6;
+				nbits = 6;
 				break;
 			case WED_LOG_ACCEL_CMP_8_BIT:
-				val16 = 8;
+				nbits = 8;
+				// This is also uncompressed data
+				if (g_logFile[WED_LOG_ACCEL] == NULL)
+				{
+					g_logFile[WED_LOG_ACCEL] = fopen("./Accel.log", "w");
+					fprintf(g_logFile[WED_LOG_ACCEL], "x,y,z\n");
+				}
 				break;
 			default:
 				break;
@@ -448,16 +485,35 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			{
 				fprintf(stderr, "Invalid ACCEL_CMP ignored\n");
 				break;
+			}
+
+			// We must first get at least one uncompressed accel log
+			if (g_logFile[WED_LOG_ACCEL] == NULL)
+				break;
+
+			pdu = buf;
+			buf += 2;
+
+			if (nbits == 8) {
+				while (field_count--) {
+					for (i = 0; i < 3; ++i)
+						g_logAccel.accel[i] = pdu[i];
+					pdu += 3;
+					fprintf(g_logFile[WED_LOG_ACCEL], "%d,%d,%d\n", g_logAccel.accel[0], g_logAccel.accel[1], g_logAccel.accel[2]);
+				}
 			} else {
-				for (i = 0; i < field_count; ++i)
-				{
-					// TODO: implement
-					// logAccel.accel
+				GetBits gb;
+				cmpGetBitsInit(&gb, buf);
+				while (field_count--) {
+					uint8 i;
+					for (i = 0; i < 3; i++) {
+						int8 diff = cmpGetBits(&gb, nbits);
+						g_logAccel.accel[i] += diff;
+					}
+					fprintf(g_logFile[WED_LOG_ACCEL], "%d,%d,%d\n", g_logAccel.accel[0], g_logAccel.accel[1], g_logAccel.accel[2]);
 				}
 			}
 
-			payload += packet_len;
-			fprintf(g_logFile[log_type], "%u\n", logAccelCmp.count_bits);
 			break;
 		default:
 			printf("Notification handle = 0x%04x value: ", handle);
@@ -1031,6 +1087,10 @@ int main(int argc, char **argv)
 	memset(&g_config_ls, 0, sizeof(g_config_ls));
 	memset(&g_config_accel, 0, sizeof(g_config_accel));
 	memset(&g_status, 0, sizeof(g_status));
+	memset(&g_logTag, 0, sizeof(g_logTag));
+	memset(&g_logTime, 0, sizeof(g_logTime));
+	memset(&g_logAccel, 0, sizeof(g_logAccel));
+	memset(&g_logLSConfig, 0, sizeof(g_logLSConfig));
 
 	// Set parameters based on command line
 	do_command_line(argc, argv);
