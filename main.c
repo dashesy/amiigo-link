@@ -319,7 +319,7 @@ FILE * log_file_open(const char * szBase)
 	char szFullName[1024] = {0};
 	time_t now = time(NULL);
 	strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now) );
-	sprintf(szFullName, "%s_%s.log", szBase, szDateTime);
+	sprintf(szFullName, "%s_%u_%u_%s.log", szBase, g_logTime.timestamp, g_logTime.fast_rate, szDateTime);
 
 	FILE * fp = fopen(szFullName, "w");
 	return fp;
