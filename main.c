@@ -271,9 +271,10 @@ int process_download(uint8_t * buf, ssize_t buflen)
 
 	// TODO: use date-time to avoid overwriting logs
 	// TODO: check packet sizes
+	// TODO: check data integrity
 
 	uint16_t val16;
-	int field_count;
+	uint8_t field_count;
 	int packet_len;
 	int payload = 3; // Payload starting position
 	int seq_number = buf[payload] >> 4;
@@ -332,7 +333,6 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			payload += packet_len;
 			break;
 		case WED_LOG_LS_DATA:
-			// TODO: check data integrity
 			if (g_logFile[log_type] == NULL)
 			{
 				g_logFile[log_type] = fopen("./LS_Data.log", "w");
@@ -341,14 +341,19 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			packet_len = WEDLogLSDataSize(&buf[payload]);
 			logLSData.type = log_type;
 			val16 = att_get_u16(&buf[payload + 1]);
-			field_count = ((val16 & 0xFFFF) >> 14) + 1;
+			field_count = ((val16 & 0xC000) >> 14) + 1;
+			if (field_count > 3)
+			{
+				fprintf(stderr, "Invalid LS_DATA ignored\n");
+				break;
+			}
 			logLSData.val[0] = val16 & 0x3FFF;
 			for (i = 1; i < field_count; ++i)
 				logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
 
 			for (i = 0; i < field_count; ++i)
 			{
-				fprintf(g_logFile[log_type], "%d", logLSData.val[i]);
+				fprintf(g_logFile[log_type], "%u", logLSData.val[i]);
 				if (i < field_count)
 					fprintf(g_logFile[log_type], ",");
 			}
@@ -386,14 +391,47 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			payload += packet_len;
 			break;
 		case WED_LOG_ACCEL_CMP:
-			if (g_logFile[log_type] == NULL)
-				g_logFile[log_type] = fopen("./AccelCmp.log", "w");
+			// We must first get a normal accel logs
+			if (g_logFile[WED_LOG_ACCEL] == NULL)
+				break;
 
 			packet_len = WEDLogAccelCmpSize(&buf[payload]);
 			logAccelCmp.type = log_type;
 			logAccelCmp.count_bits = buf[payload + 1];
-			// FIXME: this is not implemented yet
-			// Move forward
+			field_count = (logAccelCmp.count_bits & 0xF) + 1;
+			val16 = 0;
+			switch ((logAccelCmp.count_bits & 0x70) >> 4)
+			{
+			case WED_LOG_ACCEL_CMP_3_BIT:
+				val16 = 3;
+				break;
+			case WED_LOG_ACCEL_CMP_4_BIT:
+				val16 = 4;
+				break;
+			case WED_LOG_ACCEL_CMP_5_BIT:
+				val16 = 5;
+				break;
+			case WED_LOG_ACCEL_CMP_6_BIT:
+				val16 = 6;
+				break;
+			case WED_LOG_ACCEL_CMP_8_BIT:
+				val16 = 8;
+				break;
+			default:
+				break;
+			}
+			if (val16 == 0)
+			{
+				fprintf(stderr, "Invalid ACCEL_CMP ignored\n");
+				break;
+			} else {
+				for (i = 0; i < field_count; ++i)
+				{
+					// TODO: implement
+					// logAccel.accel
+				}
+			}
+
 			payload += packet_len;
 			fprintf(g_logFile[log_type], "%u\n", logAccelCmp.count_bits);
 			break;
@@ -1069,6 +1107,9 @@ int main(int argc, char **argv)
 
     for(;;)
     {
+
+    	// TODO: implement keep-alive (every 60 seconds)
+
     	FD_ZERO(&read_fds);
     	FD_SET(g_sock, &read_fds);
     	ready = select(g_sock + 1, &read_fds, NULL, NULL, &tv);
@@ -1099,6 +1140,8 @@ int main(int argc, char **argv)
     		// If error in receive, quit
     		if (len < 0)
     			break;
+    		if (buflen == 0)
+    			continue;
     		// Process incoming data
     		ret = process_data(buf, buflen);
     		if (ret)
