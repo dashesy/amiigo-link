@@ -323,7 +323,9 @@ FILE * log_file_open(const char * szBase)
 	char szDateTime[256];
 	char szFullName[1024] = {0};
 	time_t now = time(NULL);
+	// Use date-time to avoid overwriting logs
 	strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now) );
+	// Use other metadata to distinguish each log
 	sprintf(szFullName, "%s_%u_%u_%u_%s.log", szBase, g_logTag.tag, g_logTime.timestamp, g_logTime.fast_rate, szDateTime);
 
 	FILE * fp = fopen(szFullName, "w");
@@ -351,7 +353,6 @@ int process_download(uint8_t * buf, ssize_t buflen)
 	WEDLogLSData logLSData;
 	WEDLogTemp logTemp;
 
-	// TODO: use date-time to avoid overwriting logs
 	// TODO: check packet sizes
 	// TODO: check data integrity
 
@@ -973,8 +974,7 @@ void show_usage_screen(void)
 	printf ("\n");
     printf("Usage: amlink [options] [command]\n"
             "Options:\n"
-            "  -V             Verbose mode, messages are dumped to console\n"
-            "  --verbose\n"
+            "  -V, --verbose Verbose mode, messages are dumped to console\n"
             "  --i, --adapter uuid|hci<N>\n"
             "    Interface adapter to use (default is hci0)\n"
             "  --b, --device uuid \n"
