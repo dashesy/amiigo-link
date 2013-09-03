@@ -172,6 +172,13 @@ int exec_read(uint16_t handle)
 // Start downloading the log packets
 int exec_download()
 {
+	if (g_status.num_log_entries == 0)
+	{
+		// Nothing to download!
+		g_state = STATE_COUNT;
+		return 0;
+	}
+
 	g_state = STATE_DOWNLOAD; // Download in progress
 
 	uint8_t * buf = malloc(g_buflen);
@@ -756,12 +763,9 @@ int process_data(uint8_t * buf, ssize_t buflen)
 			{
 				g_state = STATE_COUNT;
 			} else {
-				if (g_state == STATE_NONE)
-				{
-					// Now that we have status (e.g. number of logs)
-					//  Start execution of the requested command
-					ret = process_command();
-				}
+				// Now that we have status (e.g. number of logs)
+				//  Start execution of the requested command
+				ret = process_command();
 			}
 			break;
 		default:
@@ -1242,6 +1246,7 @@ int main(int argc, char **argv)
     			break;
     }
 
+    printf("\n");
     // Close soecket
 	shutdown(g_sock, SHUT_RDWR);
 	close(g_sock);
