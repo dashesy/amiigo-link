@@ -310,6 +310,21 @@ int exec_reset()
 	return 0;
 }
 
+// Open file for logging
+// Inputs:
+//   szBase - the base name of the log
+FILE * log_file_open(const char * szBase)
+{
+	char szDateTime[256];
+	char szFullName[1024] = {0};
+	time_t now = time(NULL);
+	strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now) );
+	sprintf(szFullName, "%s_%s.log", szBase, szDateTime);
+
+	FILE * fp = fopen(szFullName, "w");
+	return fp;
+}
+
 // Continue downloading packets
 int process_download(uint8_t * buf, ssize_t buflen)
 {
@@ -337,7 +352,17 @@ int process_download(uint8_t * buf, ssize_t buflen)
 
 	int packet_len;
 	int payload = 3; // Payload starting position
-	int seq_number = buf[payload] >> 4;
+
+	int seq_number = (buf[payload] & 0xF0) >> 4;
+	static int prev_seq_number = -1;
+	if (prev_seq_number == -1)
+		prev_seq_number = seq_number - 1;
+	int expected_seq_number = prev_seq_number + 1;
+	if (expected_seq_number == 16)
+		expected_seq_number = 0;
+	if (expected_seq_number != seq_number)
+		printf(" err sequence!\n");
+	prev_seq_number = seq_number;
 
 	// TODO: use seq_number for reordering packets
 
@@ -348,44 +373,54 @@ int process_download(uint8_t * buf, ssize_t buflen)
 		switch(log_type)
 		{
 		uint16_t val16;
-		uint8_t field_count, nbits;
+		uint8_t field_count, nbits, prev_rate;
 		uint8_t * pdu;
 
 		case WED_LOG_TIME:
-
-			// TODO: use this to split log files
-
 			packet_len = sizeof(g_logTime);
+
 			g_logTime.type = log_type;
 			g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
+			prev_rate = g_logTime.fast_rate;
 			g_logTime.fast_rate = buf[payload + 5];
 
-			// Move forward
-			payload += packet_len;
+			if (g_logTime.fast_rate != prev_rate)
+			{
+				// Close log files, to have them split on next packet
+				for (i = 0; i < MAX_LOG_ENTRIES; ++i)
+				{
+					if (g_logFile[i] != NULL)
+					{
+						fclose(g_logFile[i]);
+						g_logFile[i] = NULL;
+					}
+				}
+			}
+
 			break;
 		case WED_LOG_ACCEL:
+			packet_len = sizeof(g_logAccel);
+
 			if (g_logFile[log_type] == NULL)
 			{
-				g_logFile[log_type] = fopen("./Accel.log", "w");
+				g_logFile[log_type] = log_file_open("Accel");
 				fprintf(g_logFile[log_type], "x,y,z\n");
 			}
 
-			packet_len = sizeof(g_logAccel);
 			g_logAccel.type = log_type;
 			for (i = 0; i < 3; ++i)
 				g_logAccel.accel[i] = buf[payload + 1 + i];
 			fprintf(g_logFile[log_type], "%d,%d,%d\n", g_logAccel.accel[0], g_logAccel.accel[1], g_logAccel.accel[2]);
-			// Move forward
-			payload += packet_len;
 			break;
 		case WED_LOG_LS_CONFIG:
+			packet_len = sizeof(g_logLSConfig);
+
 			if (g_logFile[log_type] == NULL)
 			{
-				g_logFile[log_type] = fopen("./LS_Config.log", "w");
+				g_logFile[log_type] = log_file_open("LS_Config");
 				fprintf(g_logFile[log_type], "dac_red,dac_ir,level_red,level_ir\n");
 			}
 
-			packet_len = sizeof(g_logLSConfig);
 			g_logLSConfig.type = log_type;
 			g_logLSConfig.dac_red = buf[payload + 1];
 			g_logLSConfig.dac_ir = buf[payload + 2];
@@ -393,16 +428,15 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			g_logLSConfig.level_ir = buf[payload + 4];
 			fprintf(g_logFile[log_type], "%u,%u,%u,%u\n",
 					g_logLSConfig.dac_red, g_logLSConfig.dac_ir, g_logLSConfig.level_red, g_logLSConfig.level_ir);
-			// Move forward
-			payload += packet_len;
 			break;
 		case WED_LOG_LS_DATA:
+			packet_len = WEDLogLSDataSize(&buf[payload]);
+
 			if (g_logFile[log_type] == NULL)
 			{
-				g_logFile[log_type] = fopen("./LS_Data.log", "w");
+				g_logFile[log_type] = log_file_open("LS_Data");
 			}
 
-			packet_len = WEDLogLSDataSize(&buf[payload]);
 			logLSData.type = log_type;
 			val16 = att_get_u16(&buf[payload + 1]);
 			field_count = ((val16 & 0xC000) >> 14) + 1;
@@ -422,41 +456,27 @@ int process_download(uint8_t * buf, ssize_t buflen)
 					fprintf(g_logFile[log_type], ",");
 			}
 			fprintf(g_logFile[log_type], "\n");
-			// Move forward
-			payload += packet_len;
 			break;
 		case WED_LOG_TEMP:
-			if (g_logFile[log_type] == NULL)
-				g_logFile[log_type] = fopen("./Temp.log", "w");
-
 			packet_len = sizeof(logTemp);
+
+			if (g_logFile[log_type] == NULL)
+				g_logFile[log_type] = log_file_open("Temp");
+
 			logTemp.type = log_type;
 			logTemp.temperature = att_get_u16(&buf[payload + 1]);
 			fprintf(g_logFile[log_type], "%d\n", logTemp.temperature);
-			// Move forward
-			payload += packet_len;
 			break;
 		case WED_LOG_TAG:
-			if (g_logFile[log_type] == NULL)
-				g_logFile[log_type] = fopen("./Tag.log", "w");
-
 			packet_len = sizeof(g_logTag);
+
 			g_logTag.type = log_type;
 			for (i = 0; i < 4; ++i)
 				g_logTag.tag[i] = buf[payload + 1 + i];
-			for (i = 0; i < 4; ++i)
-			{
-				fprintf(g_logFile[log_type], "%u", g_logTag.tag[i]);
-				if (i < 4)
-					fprintf(g_logFile[log_type], ",");
-			}
-			fprintf(g_logFile[log_type], "\n");
-			// Move forward
-			payload += packet_len;
+			// TODO: do something useful with the tag
 			break;
 		case WED_LOG_ACCEL_CMP:
 			packet_len = WEDLogAccelCmpSize(&buf[payload]);
-			payload += packet_len;
 
 			logAccelCmp.type = log_type;
 			logAccelCmp.count_bits = buf[payload + 1];
@@ -481,14 +501,14 @@ int process_download(uint8_t * buf, ssize_t buflen)
 				// This is also uncompressed data
 				if (g_logFile[WED_LOG_ACCEL] == NULL)
 				{
-					g_logFile[WED_LOG_ACCEL] = fopen("./Accel.log", "w");
+					g_logFile[WED_LOG_ACCEL] = log_file_open("Accel");
 					fprintf(g_logFile[WED_LOG_ACCEL], "x,y,z\n");
 				}
 				break;
 			default:
 				break;
 			}
-			if (val16 == 0)
+			if (nbits == 0)
 			{
 				fprintf(stderr, "Invalid ACCEL_CMP ignored\n");
 				break;
@@ -523,16 +543,21 @@ int process_download(uint8_t * buf, ssize_t buflen)
 
 			break;
 		default:
+			packet_len = (buflen - payload);
+
 			printf("Notification handle = 0x%04x value: ", handle);
-			for (i = 3; i < buflen; ++i)
+			for (i = payload; i < buflen; ++i)
 				printf("%02x ", buf[i]);
 			printf("\n");
-			payload = buflen;
 			break;
 		}
 
-		log_type = buf[payload];
-	}
+		// Move forward within aggregate packet
+		payload += packet_len;
+
+		if (payload < buflen)
+			log_type = buf[payload];
+	} // end while (payload < buflen
 
 	printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_total_logs, g_status.num_log_entries, (100.0 * g_total_logs) / g_status.num_log_entries);
 	fflush(stdout);
@@ -767,6 +792,10 @@ int process_data(uint8_t * buf, ssize_t buflen)
 				//  Start execution of the requested command
 				ret = process_command();
 			}
+			break;
+		case STATE_DOWNLOAD:
+			// This must be keep-alive
+			process_status(buf, buflen);
 			break;
 		default:
 			dump_buffer(buf, buflen);
