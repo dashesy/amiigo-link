@@ -111,8 +111,13 @@ WEDConfigAccel g_config_accel; // Acceleration sensors configuration
 
 WEDStatus g_status; // Device status
 
-// Soem log packets to keep their state
-WEDLogTag g_logTag;
+// Some log packets to keep their state
+struct {
+	uint8 type; // WED_LOG_TAG
+
+	// Tag data from WED_MAINT_TAG command
+	uint32_t tag;
+} g_logTag;
 WEDLogTimestamp g_logTime;
 WEDLogAccel g_logAccel;
 WEDLogLSConfig g_logLSConfig;
@@ -319,7 +324,7 @@ FILE * log_file_open(const char * szBase)
 	char szFullName[1024] = {0};
 	time_t now = time(NULL);
 	strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now) );
-	sprintf(szFullName, "%s_%u_%u_%s.log", szBase, g_logTime.timestamp, g_logTime.fast_rate, szDateTime);
+	sprintf(szFullName, "%s_%u_%u_%u_%s.log", szBase, g_logTag.tag, g_logTime.timestamp, g_logTime.fast_rate, szDateTime);
 
 	FILE * fp = fopen(szFullName, "w");
 	return fp;
@@ -471,9 +476,17 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			packet_len = sizeof(g_logTag);
 
 			g_logTag.type = log_type;
-			for (i = 0; i < 4; ++i)
-				g_logTag.tag[i] = buf[payload + 1 + i];
-			// TODO: do something useful with the tag
+			g_logTag.tag = att_get_u32(&buf[payload + 1]);
+			printf("\nSplit on Tag %u\n", g_logTag.tag);
+			// Close log files, to have them split on next packet
+			for (i = 0; i < MAX_LOG_ENTRIES; ++i)
+			{
+				if (g_logFile[i] != NULL)
+				{
+					fclose(g_logFile[i]);
+					g_logFile[i] = NULL;
+				}
+			}
 			break;
 		case WED_LOG_ACCEL_CMP:
 			packet_len = WEDLogAccelCmpSize(&buf[payload]);
