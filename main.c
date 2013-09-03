@@ -1086,37 +1086,21 @@ static void do_command_line(int argc, char * const argv[])
     }
 }
 
-bool kbhit()
+char kbhit()
 {
-	struct timeval tv;
-	fd_set fds;
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	FD_ZERO(&fds);
-	FD_SET(STDIN_FILENO, &fds);
-	select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
-	return (FD_ISSET(0, &fds));
-}
-
-
-char getch() {
-	char buf = 0;
-	struct termios old = {0};
-	if (tcgetattr(0, &old) < 0)
-		perror("tcgetattr()");
-	old.c_lflag &= ~ICANON;
-	old.c_lflag &= ~ECHO;
-	old.c_cc[VMIN] = 1;
-	old.c_cc[VTIME] = 0;
-	if (tcsetattr(0, TCSANOW, &old) < 0)
-		perror("tcsetattr ICANON");
-	if (read(0, &buf, 1) < 0)
-		perror ("read()");
-	old.c_lflag |= ICANON;
-	old.c_lflag |= ECHO;
-	if (tcsetattr(0, TCSADRAIN, &old) < 0)
-		perror ("tcsetattr ~ICANON");
-	return (buf);
+	struct termios oldt, newt;
+	int ch;
+	tcgetattr(STDIN_FILENO, &oldt);
+	newt = oldt;
+	newt.c_lflag &= ~( ICANON | ECHO );
+	newt.c_cc[VMIN] = 0;
+	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+	int nread = read(STDIN_FILENO, &ch, 1);
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+	if(nread == 1)
+		return ch;
+	else
+		return 0;
 }
 
 int main(int argc, char **argv)
@@ -1284,8 +1268,8 @@ int main(int argc, char **argv)
     		if (g_state == STATE_COUNT)
     			break; // Done the the command
     	}
-    	if (kbhit())
-    		if(getch() == 'q')
+    	int ch = kbhit();
+    	if (ch == 'q')
     			break;
     }
 
