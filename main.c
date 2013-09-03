@@ -1268,9 +1268,8 @@ int main(int argc, char **argv)
     		if (g_state == STATE_COUNT)
     			break; // Done the the command
     	}
-    	int ch = kbhit();
-    	if (ch == 'q')
-    			break;
+    	if (kbhit() == 'q')
+			break;
     }
 
     printf("\n");
