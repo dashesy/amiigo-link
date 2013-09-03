@@ -1128,7 +1128,7 @@ int main(int argc, char **argv)
 
 	if (strlen(g_dst) == 0)
 	{
-		fprintf(stderr, "Device address must be specified (use --help to find the usag)\n");
+		fprintf(stderr, "Device address must be specified (use --help to find the usage)\n");
 		return -1;
 	}
 	if (str2ba(g_dst, &opts.dst))
