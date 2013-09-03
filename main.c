@@ -491,7 +491,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			if (g_logFile[WED_LOG_ACCEL] == NULL)
 				break;
 
-			pdu = buf;
+			pdu = &buf[payload];
 			pdu += 2;
 
 			if (nbits == 8) {
