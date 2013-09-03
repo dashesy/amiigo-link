@@ -369,7 +369,6 @@ int process_download(uint8_t * buf, ssize_t buflen)
 	WED_LOG_TYPE log_type = buf[payload] & 0x0F;
 	while (payload < buflen)
 	{
-		g_total_logs++; // Total number of log points downloaded so far
 		switch(log_type)
 		{
 		uint16_t val16;
@@ -378,6 +377,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 
 		case WED_LOG_TIME:
 			packet_len = sizeof(g_logTime);
+			g_total_logs++; // Total number of log points downloaded so far
 
 			g_logTime.type = log_type;
 			g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
@@ -400,6 +400,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			break;
 		case WED_LOG_ACCEL:
 			packet_len = sizeof(g_logAccel);
+			g_total_logs++; // Total number of log points downloaded so far
 
 			if (g_logFile[log_type] == NULL)
 			{
@@ -414,6 +415,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			break;
 		case WED_LOG_LS_CONFIG:
 			packet_len = sizeof(g_logLSConfig);
+			g_total_logs++; // Total number of log points downloaded so far
 
 			if (g_logFile[log_type] == NULL)
 			{
@@ -431,6 +433,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			break;
 		case WED_LOG_LS_DATA:
 			packet_len = WEDLogLSDataSize(&buf[payload]);
+			g_total_logs++; // Total number of log points downloaded so far
 
 			if (g_logFile[log_type] == NULL)
 			{
@@ -459,6 +462,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			break;
 		case WED_LOG_TEMP:
 			packet_len = sizeof(logTemp);
+			g_total_logs++; // Total number of log points downloaded so far
 
 			if (g_logFile[log_type] == NULL)
 				g_logFile[log_type] = log_file_open("Temp");
@@ -469,6 +473,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			break;
 		case WED_LOG_TAG:
 			packet_len = sizeof(g_logTag);
+			g_total_logs++; // Total number of log points downloaded so far
 
 			g_logTag.type = log_type;
 			for (i = 0; i < 4; ++i)
@@ -481,6 +486,8 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			logAccelCmp.type = log_type;
 			logAccelCmp.count_bits = buf[payload + 1];
 			field_count = (logAccelCmp.count_bits & 0xF) + 1;
+			g_total_logs += field_count; // Total number of log points downloaded so far
+
 			nbits = 0;
 			switch ((logAccelCmp.count_bits & 0x70) >> 4)
 			{
@@ -544,6 +551,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			break;
 		default:
 			packet_len = (buflen - payload);
+			g_total_logs++; // Total number of log points downloaded so far
 
 			printf("Notification handle = 0x%04x value: ", handle);
 			for (i = payload; i < buflen; ++i)
