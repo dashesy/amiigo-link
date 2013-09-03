@@ -492,7 +492,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 				break;
 
 			pdu = buf;
-			buf += 2;
+			pdu += 2;
 
 			if (nbits == 8) {
 				while (field_count--) {
@@ -503,7 +503,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 				}
 			} else {
 				GetBits gb;
-				cmpGetBitsInit(&gb, buf);
+				cmpGetBitsInit(&gb, pdu);
 				while (field_count--) {
 					uint8 i;
 					for (i = 0; i < 3; i++) {
