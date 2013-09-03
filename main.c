@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <termios.h>
 #include <getopt.h>
+#include <time.h>
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/l2cap.h>
@@ -65,7 +66,7 @@ char g_szVersion[512] = "Unknown";
 #define OPT_END_HANDLE   0xffff
 
 
-enum {
+enum AMIIGO_CMD {
 	AMIIGO_CMD_NONE = 0,      // Just to do a connection status test
 	AMIIGO_CMD_RESET_LOGS,    // Reset log buffer
 	AMIIGO_CMD_RESET_CPU,     // Reset CPU
@@ -107,6 +108,29 @@ int dump_buffer(uint8_t * buf, ssize_t buflen)
 		printf("%02x ", buf[i]);
 	printf("\n");
 
+	return 0;
+}
+
+// Read a characteristics
+// Inputs:
+//   handle - characteristics handle to read from
+int exec_read(uint16_t handle)
+{
+	if (handle == 0)
+		return -1;
+	uint16_t plen;
+	uint8_t * buf = malloc(g_buflen);
+    memset(buf, 0, g_buflen);
+
+	plen = enc_read_req(handle, buf, g_buflen);
+
+	ssize_t len = send(g_sock, buf, plen, 0);
+
+	free(buf);
+	if (len < 0 || len != plen)
+	{
+		return -1;
+	}
 	return 0;
 }
 
@@ -503,12 +527,12 @@ int discover_handles(uint16_t start_handle, uint16_t end_handle)
 	return 0;
 }
 
+// State machine to get necessary information.
 // Discover device current status, and running firmware
 int discover_device()
 {
 	// TODO: this should go to a stack state-machine instead
 
-	uint16_t plen;
 	uint16_t handle;
 
 	enum DISCOVERY_STATE new_state = STATE_NONE;
@@ -547,21 +571,12 @@ int discover_device()
 		return 0; // already handled
 		break;
 	}
-
-	uint8_t * buf = malloc(g_buflen);
-    memset(buf, 0, g_buflen);
-
-	plen = enc_read_req(handle, buf, g_buflen);
-
-	ssize_t len = send(g_sock, buf, plen, 0);
-
-	free(buf);
-	if (len < 0 || len != plen)
-	{
-		return -1;
-	}
 	g_state = new_state;
-	return 0;
+
+	// Read the handle of interest
+	int ret = exec_read(handle);
+
+	return ret;
 }
 
 // Set device status
@@ -608,6 +623,7 @@ int process_data(uint8_t * buf, ssize_t buflen)
 			err = buf[4];
 		if (err == ATT_ECODE_ATTR_NOT_FOUND)
 		{
+			// If no battery information, we do not have status
 			if (g_status.battery_level == 0)
 				discover_device();
 		} else {
@@ -1003,6 +1019,7 @@ char getch() {
 int main(int argc, char **argv)
 {
 	int ret;
+	time_t start_time, stop_time;
 
 	memset(g_char, 0, sizeof(g_char));
 	int i;
@@ -1107,12 +1124,19 @@ int main(int argc, char **argv)
 	FD_ZERO(&read_fds);
 	FD_SET(g_sock, &read_fds);
 
+	start_time = time(NULL);
 	uint8_t buf[1024];
 
     for(;;)
     {
-
-    	// TODO: implement keep-alive (every 60 seconds)
+    	stop_time = time(NULL);
+    	double diff = difftime(stop_time, start_time);
+    	// Keep-alive by readin status every 60s
+    	if (diff > 60)
+    	{
+    		start_time = stop_time;
+    		exec_read(g_char[AMIIGO_UUID_STATUS].value_handle);
+    	}
 
     	FD_ZERO(&read_fds);
     	FD_SET(g_sock, &read_fds);
