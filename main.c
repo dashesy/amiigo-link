@@ -684,8 +684,12 @@ int process_data(uint8_t * buf, ssize_t buflen)
 			{
 				g_state = STATE_COUNT;
 			} else {
-				// Now that we have status (e.g. number of logs) can go and perform other commands
-				ret = process_command();
+				if (g_state == STATE_NONE)
+				{
+					// Now that we have status (e.g. number of logs)
+					//  Start execution of the requested command
+					ret = process_command();
+				}
 			}
 			break;
 		default:
