@@ -12,6 +12,7 @@ dist/
 *.suo
 *.aps
 *.DS_Store
+*.log
 
 *.*~
 
