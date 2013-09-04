@@ -986,8 +986,8 @@ void show_usage_screen(void)
             "       resetlogs: reset buffered logs\n"
             "       resetcpu: restart the board\n"
             "       resetconfigs: set all configs to default\n"
-            "  --input file\n"
-    		"    Input configuration file to use for given command.\n"
+            "  --config file\n"
+    		"    Configuration file to use for given command.\n"
             "  --help         Display this usage screen\n"
             );
     printf("amlink is Copyright Amiigo inc\n");
@@ -1009,7 +1009,7 @@ static void do_command_line(int argc, char * const argv[])
             {"b", 1, 0, 'b'},
             {"device", 1, 0, 'b'},
             {"command", 1, 0, 'x'},
-            {"input", 1, 0, 'f'},
+            {"config", 1, 0, 'f'},
             {"help", 0, 0, '?'},
             {0, 0, 0, 0}
         };
