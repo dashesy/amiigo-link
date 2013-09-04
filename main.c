@@ -96,6 +96,7 @@ char g_szVersion[512] = "Unknown";
 
 enum AMIIGO_CMD {
 	AMIIGO_CMD_NONE = 0,      // Just to do a connection status test
+	AMIIGO_CMD_FWUPDATE,      // Firmware update
 	AMIIGO_CMD_RESET_LOGS,    // Reset log buffer
 	AMIIGO_CMD_RESET_CPU,     // Reset CPU
 	AMIIGO_CMD_RESET_CONFIGS, // Reset configurations to default
@@ -128,12 +129,16 @@ uint32_t g_total_logs = 0; // Total number of logs
 #define MAX_LOG_ENTRIES (WED_LOG_ACCEL_CMP + 1)
 FILE * g_logFile[MAX_LOG_ENTRIES] = {NULL};
 
+FILE * g_fwImageFile = NULL; // Firmware image file
+
 enum DISCOVERY_STATE {
 	STATE_NONE = 0,
 	STATE_BUILD,
 	STATE_VERSION,
 	STATE_STATUS,
 	STATE_DOWNLOAD,
+	STATE_FWSTATUS_WAIT_UPLOAD,
+	STATE_FWSTATUS_WAIT_UPDATE,
 
 	STATE_COUNT, // This must be the last
 } g_state = STATE_NONE;
@@ -150,18 +155,18 @@ int dump_buffer(uint8_t * buf, ssize_t buflen)
 	return 0;
 }
 
-// Read a characteristics
+// Read a characteristic
 // Inputs:
 //   handle - characteristics handle to read from
 int exec_read(uint16_t handle)
 {
 	if (handle == 0)
 		return -1;
-	uint16_t plen;
+
 	uint8_t * buf = malloc(g_buflen);
     memset(buf, 0, g_buflen);
 
-	plen = enc_read_req(handle, buf, g_buflen);
+    uint16_t plen = enc_read_req(handle, buf, g_buflen);
 
 	ssize_t len = send(g_sock, buf, plen, 0);
 
@@ -171,6 +176,54 @@ int exec_read(uint16_t handle)
 		return -1;
 	}
 	return 0;
+}
+
+// Write to a characteristic
+// Inputs:
+//   handle - characteristics handle to write to
+//   value  - value to write
+//   vlen   - size of value in bytes
+int exec_write(uint16_t handle, const uint8_t * value, size_t vlen)
+{
+	if (handle == 0)
+		return -1;
+
+	uint8_t * buf = malloc(g_buflen);
+    memset(buf, 0, g_buflen);
+    uint16_t plen = enc_write_cmd(handle, value, vlen, buf, g_buflen);
+
+	ssize_t len = send(g_sock, buf, plen, 0);
+
+	free(buf);
+	if (len < 0 || len != plen)
+	{
+		return -1;
+	}
+
+	return 0;
+}
+
+// Start firmware update procedure
+int exec_fwupdate()
+{
+	g_state = STATE_FWSTATUS_WAIT_UPLOAD;
+
+	uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
+	if (handle == 0)
+		return -1; // Not ready yet
+
+	printf("\n\n");
+
+	WEDFirmwareCommand fwcmd;
+	memset(&fwcmd, 0, sizeof(fwcmd));
+	fwcmd.pkt_type = WED_FIRMWARE_INIT;
+
+	int ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
+	if (ret)
+		return -1;
+
+	// Now read for status
+	return exec_read(handle);
 }
 
 // Start downloading the log packets
@@ -185,28 +238,20 @@ int exec_download()
 
 	g_state = STATE_DOWNLOAD; // Download in progress
 
-	uint8_t * buf = malloc(g_buflen);
-    memset(buf, 0, g_buflen);
-
-	uint16_t plen;
 	uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
 	if (handle == 0)
 		return -1; // Not ready yet
 	printf("\n\n");
 	 // Config for notify
 	WEDConfig config;
+	memset(&config, 0, sizeof(config));
 	config.config_type = WED_CFG_LOG;
 	config.log.flags = WED_CONFIG_LOG_DL_EN | WED_CONFIG_LOG_CMP_EN;
 
-	plen = enc_write_cmd(handle, (uint8_t *)&config, sizeof(config), buf, g_buflen);
-
-	ssize_t len = send(g_sock, buf, plen, 0);
-
-	free(buf);
-	if (len < 0 || len != plen)
-	{
+	int ret = exec_write(handle, (uint8_t *)&config, sizeof(config));
+	if (ret)
 		return -1;
-	}
+
 	return 0;
 }
 
@@ -215,26 +260,19 @@ int exec_configls()
 {
 	g_state = STATE_COUNT; // Done with command
 
-	uint8_t * buf = malloc(g_buflen);
-    memset(buf, 0, g_buflen);
-
-	uint16_t plen;
 	uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
 	if (handle == 0)
 		return -1; // Not ready yet
+
 	WEDConfig config;
+	memset(&config, 0, sizeof(config));
 	config.config_type = WED_CFG_LS;
 	config.lightsensor = g_config_ls;
 
-	plen = enc_write_cmd(handle, (uint8_t *)&config, sizeof(config), buf, g_buflen);
-
-	ssize_t len = send(g_sock, buf, plen, 0);
-
-	free(buf);
-	if (len < 0 || len != plen)
-	{
+	int ret = exec_write(handle, (uint8_t *)&config, sizeof(config));
+	if (ret)
 		return -1;
-	}
+
 	return 0;
 }
 
@@ -243,44 +281,33 @@ int exec_configaccel()
 {
 	g_state = STATE_COUNT; // Done with command
 
-	uint8_t * buf = malloc(g_buflen);
-    memset(buf, 0, g_buflen);
-
-	uint16_t plen;
 	uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
 	if (handle == 0)
 		return -1; // Not ready yet
+
 	WEDConfig config;
+	memset(&config, 0, sizeof(config));
 	config.config_type = WED_CFG_ACCEL;
 	config.accel = g_config_accel;
 
-	plen = enc_write_cmd(handle, (uint8_t *)&config, sizeof(config), buf, g_buflen);
-
-	ssize_t len = send(g_sock, buf, plen, 0);
-
-	free(buf);
-	if (len < 0 || len != plen)
-	{
+	int ret = exec_write(handle, (uint8_t *)&config, sizeof(config));
+	if (ret)
 		return -1;
-	}
+
 	return 0;
 }
 
 // Reset config, or CPU or log buffer
-int exec_reset()
+int exec_reset(enum AMIIGO_CMD cmd)
 {
 	g_state = STATE_COUNT; // Done with command
 
-	uint8_t * buf = malloc(g_buflen);
-    memset(buf, 0, g_buflen);
-
-	uint16_t plen;
 	uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
 	if (handle == 0)
 		return -1; // Not ready yet
 	WEDConfigMaint config_maint;
 	memset(&config_maint, 0, sizeof(config_maint));
-	switch (g_cmd)
+	switch (cmd)
 	{
 	case AMIIGO_CMD_RESET_CPU:
 		printf("Restarting the device ...\n");
@@ -299,18 +326,14 @@ int exec_reset()
 		break;
 	}
 	WEDConfig config;
+	memset(&config, 0, sizeof(config));
 	config.config_type = WED_CFG_MAINT;
 	config.maint = config_maint;
 
-	plen = enc_write_cmd(handle, (uint8_t *)&config, sizeof(config), buf, g_buflen);
-
-	ssize_t len = send(g_sock, buf, plen, 0);
-
-	free(buf);
-	if (len < 0 || len != plen)
-	{
+	int ret = exec_write(handle, (uint8_t *)&config, sizeof(config));
+	if (ret)
 		return -1;
-	}
+
 	return 0;
 }
 
@@ -329,6 +352,83 @@ FILE * log_file_open(const char * szBase)
 
 	FILE * fp = fopen(szFullName, "w");
 	return fp;
+}
+
+// Firmware update in progress
+int process_fwstatus(uint8_t * buf, ssize_t buflen)
+{
+	WEDFirmwareStatus fwstatus;
+	memset(&fwstatus, 0, sizeof(fwstatus));
+	fwstatus.status = buf[1];
+	fwstatus.error_code = buf[2];
+
+	uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
+
+	if (fwstatus.status == WED_FWSTATUS_WAIT || fwstatus.status == WED_FWSTATUS_IDLE)
+	{
+		return exec_read(handle); // Continue polling
+	}
+	else if (fwstatus.status == WED_FWSTATUS_ERROR)
+	{
+		switch(fwstatus.error_code)
+		{
+		case WED_FWERROR_HEADER:
+			fprintf(stderr, "Firmware image header was unrecognized\n");
+			break;
+		case WED_FWERROR_SIZE:
+			fprintf(stderr, "Image size was too large\n");
+			break;
+		case WED_FWERROR_CRC:
+			fprintf(stderr, "CRC check failed\n");
+			break;
+		case WED_FWERROR_FLASH:
+			fprintf(stderr, "SPI flash error\n");
+			break;
+		case WED_FWERROR_OTHER:
+			fprintf(stderr, "Internal error\n");
+			break;
+		default:
+			fprintf(stderr, "Unknown error\n");
+			break;
+		}
+		return -1;
+	}
+	else if (fwstatus.status == WED_FWSTATUS_UPLOAD_READY)
+	{
+		int i;
+		for (i = 0; i < WED_FW_STREAM_BLOCKS; ++i)
+		{
+			WEDFirmwareCommand fwdata;
+			memset(&fwdata, 0, sizeof(fwdata));
+			fwdata.pkt_type = WED_FIRMWARE_DATA_BLOCK;
+			size_t len = fread(fwdata.data, WED_FW_BLOCK_SIZE, 1, g_fwImageFile);
+			if (len <= 0)
+				break;
+			exec_write(handle, (uint8_t *)&fwdata, len);
+		}
+		// Done uploding in our end
+		if (feof(g_fwImageFile))
+		{
+			WEDFirmwareCommand fwcmd;
+			memset(&fwcmd, 0, sizeof(fwcmd));
+			fwcmd.pkt_type = WED_FIRMWARE_DATA_DONE;
+
+			int ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
+			if (ret)
+				return -1;
+			printf("\rUpdating ... (upload done)");
+		}
+		return exec_read(handle); // Continue polling
+	}
+	else if (fwstatus.status == WED_FWSTATUS_UPDATE_READY)
+	{
+	}
+	else
+	{
+		fprintf(stderr, "Unknown firmware update state (%u)\n", fwstatus.status);
+		return -1;
+	}
+	return 0;
 }
 
 // Continue downloading packets
@@ -600,7 +700,10 @@ int process_command()
 	case AMIIGO_CMD_RESET_CPU:
 	case AMIIGO_CMD_RESET_LOGS:
 	case AMIIGO_CMD_RESET_CONFIGS:
-		return exec_reset();
+		return exec_reset(g_cmd);
+		break;
+	case AMIIGO_CMD_FWUPDATE:
+		return exec_fwupdate();
 		break;
 	default:
 		return 0;
@@ -816,6 +919,11 @@ int process_data(uint8_t * buf, ssize_t buflen)
 			// This must be keep-alive
 			process_status(buf, buflen);
 			break;
+		case STATE_FWSTATUS_WAIT_UPLOAD:
+		case STATE_FWSTATUS_WAIT_UPDATE:
+			// Act upon new firmware update status
+			process_fwstatus(buf, buflen);
+			break;
 		default:
 			dump_buffer(buf, buflen);
 			break;
@@ -877,6 +985,18 @@ int set_adapter(const char * szName)
 int set_device(const char * szName)
 {
 	strcpy(g_dst, szName);
+	return 0;
+}
+
+int set_update_file(const char * szName)
+{
+	g_fwImageFile = fopen(szName, "r");
+	if (g_fwImageFile == NULL)
+	{
+		fprintf(stderr, "Firmware image file (%s) not accessible!\n", szName);
+		return -1;
+	}
+	g_cmd = AMIIGO_CMD_FWUPDATE;
 	return 0;
 }
 
@@ -988,6 +1108,8 @@ void show_usage_screen(void)
             "       resetconfigs: set all configs to default\n"
             "  --config file\n"
     		"    Configuration file to use for given command.\n"
+            "  --fwupdate file\n"
+    		"    Firmware image file to to use for update.\n"
             "  --help         Display this usage screen\n"
             );
     printf("amlink is Copyright Amiigo inc\n");
@@ -1009,7 +1131,9 @@ static void do_command_line(int argc, char * const argv[])
             {"b", 1, 0, 'b'},
             {"device", 1, 0, 'b'},
             {"command", 1, 0, 'x'},
+            {"c", 1, 0, 'x'},
             {"config", 1, 0, 'f'},
+            {"fwupdate", 1, 0, 'u'},
             {"help", 0, 0, '?'},
             {0, 0, 0, 0}
         };
@@ -1053,6 +1177,11 @@ static void do_command_line(int argc, char * const argv[])
 
         case 'f':
             if (set_input_file(optarg))
+                exit(1);
+            break;
+
+        case 'u':
+            if (set_update_file(optarg))
                 exit(1);
             break;
 
@@ -1266,6 +1395,7 @@ int main(int argc, char **argv)
     }
 
     printf("\n");
+
     // Close soecket
 	shutdown(g_sock, SHUT_RDWR);
 	close(g_sock);
@@ -1276,7 +1406,15 @@ int main(int argc, char **argv)
 		if (g_logFile[i] != NULL)
 		{
 			fclose(g_logFile[i]);
+			g_logFile[i] = NULL;
 		}
+	}
+
+	// Close fw iamge file
+	if (g_fwImageFile != NULL)
+	{
+		fclose(g_fwImageFile);
+		g_fwImageFile = NULL;
 	}
 
 	return 0;
