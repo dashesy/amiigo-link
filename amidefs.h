@@ -73,9 +73,10 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 // Status
 
-#define  STATUS_UPDATE    0x01
-#define  STATUS_FASTMODE  0x02
-#define  STATUS_CHARGING  0x04
+#define  STATUS_UPDATE        0x01
+#define  STATUS_FASTMODE      0x02
+#define  STATUS_CHARGING      0x04
+#define  STATUS_LS_INPROGRESS 0x08
 
 // Top-level struct for characteristic UUID AMI_UUID(WED_UUID_STATUS)
 typedef struct {
@@ -88,7 +89,8 @@ typedef struct {
 	// BIT FIELD
 	// Bit 0: Is a firmware update in progress
 	// Bit 1: Are we in fast mode?
-	// bit 2; Are we charging.
+	// bit 2: Are we charging.
+	// bit 3: LS collection in progress.
 	uint8 status; 
 
 	// Current time in WED_TIME_TICKS_PER_SEC
@@ -159,6 +161,8 @@ enum {
     WED_SAMPLE_LED_NONE = (1 << 2),
 };
 
+#define CONFIGLS_FLAGS_START_NOW 0x80
+#define CONFIGLS_FLAGS_ABORT     0x40
 
 typedef struct {
 	uint8 on_time;   // LED on time before ADC reading, in msec
@@ -180,10 +184,10 @@ typedef struct {
 	uint8 norecal;   // 1 = Do NOT auto shift DAC when readings get too close to the min/max
 
 	uint8 debug;     // Console output debug level, set to 0 for normal operation
-	uint8 samples;   // samples to adverage. 1 to 16
-	uint8 dac_ref;   // Which refernce voltage for the DAC
-	uint8 adc_bits;  // Can be 8, 10, 12, or 14.  default = 14
-	uint8 adc_ref;   // Which reference voltage for the ADC
+	uint8 unused1;   // unused
+	uint8 unused2;   // Which refernce voltage for the DAC
+	uint8 unused3;   // Can be 8, 10, 12, or 14.  default = 14
+	uint8 flags;     // Contol Bits
 } PACKED WEDConfigLS;
 
 typedef struct {
@@ -380,6 +384,8 @@ typedef struct {
 	uint8 dac_ir;    // DAC setting for IR LED
 	uint8 level_red; // LED driver setting for red LED
 	uint8 level_ir;  // LED driver setting for IR LED
+	uint8 gain;      // calabrated gain value
+	uint8 log_size;  // bytes per log entry.
 } PACKED WEDLogLSConfig;
 
 // This is generated once for each red/IR/off sample group.

@@ -53,7 +53,6 @@ static int8 cmpGetBits(GetBits* gb, uint8 nbits) {
 }
 
 // Device and interface to use
-//char g_dst[512] = "90:59:AF:04:32:F0";
 char g_dst[512] = "";
 char g_src[512] = "hci0";
 
@@ -424,7 +423,7 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			if (g_logFile[log_type] == NULL)
 			{
 				g_logFile[log_type] = log_file_open("LS_Config");
-				fprintf(g_logFile[log_type], "dac_red,dac_ir,level_red,level_ir\n");
+				fprintf(g_logFile[log_type], "dac_red,dac_ir,level_red,level_ir,gain,log_size\n");
 			}
 
 			g_logLSConfig.type = log_type;
@@ -432,8 +431,11 @@ int process_download(uint8_t * buf, ssize_t buflen)
 			g_logLSConfig.dac_ir = buf[payload + 2];
 			g_logLSConfig.level_red = buf[payload + 3];
 			g_logLSConfig.level_ir = buf[payload + 4];
-			fprintf(g_logFile[log_type], "%u,%u,%u,%u\n",
-					g_logLSConfig.dac_red, g_logLSConfig.dac_ir, g_logLSConfig.level_red, g_logLSConfig.level_ir);
+			g_logLSConfig.gain = buf[payload + 5];
+			g_logLSConfig.log_size = buf[payload + 6];
+			fprintf(g_logFile[log_type], "%u,%u,%u,%u,%u,%u\n",
+					g_logLSConfig.dac_red, g_logLSConfig.dac_ir, g_logLSConfig.level_red,
+					g_logLSConfig.level_ir, g_logLSConfig.gain, g_logLSConfig.log_size);
 			break;
 		case WED_LOG_LS_DATA:
 			packet_len = WEDLogLSDataSize(&buf[payload]);
@@ -706,6 +708,8 @@ int process_status(uint8_t * buf, ssize_t buflen)
 		printf(" (Slow Mode) ");
 	if (g_status.status & STATUS_CHARGING)
 		printf(" (Charging) ");
+	if (g_status.status & STATUS_LS_INPROGRESS)
+		printf(" (LS Calibrating) ");
 	printf("\n");
 
 	return 0;
@@ -888,64 +892,53 @@ int set_input_file(const char * szName)
 	char szVal[256];
 	while (fscanf(fp, "%s %s", szParam, szVal) != EOF)
 	{
+		long val = strtol(szVal, NULL, 0);
 		//---------- Light ----------------------------
 		if (strcasecmp(szParam, "ls_on_time") == 0)
 		{
-			g_config_ls.on_time = (uint8_t)atoi(szVal);
+			g_config_ls.on_time = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_off_time") == 0)
 		{
-			g_config_ls.off_time = (uint8_t)atoi(szVal);
+			g_config_ls.off_time = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_fast_interval") == 0)
 		{
 			// Seconds between samples in fast mode
-			g_config_ls.fast_interval = (uint8_t)atoi(szVal);
+			g_config_ls.fast_interval = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_slow_interval") == 0)
 		{
 			// Seconds between samples in slow mode
-			g_config_ls.slow_interval = (uint8_t)atoi(szVal);
+			g_config_ls.slow_interval = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_duration") == 0)
 		{
-			g_config_ls.duration = (uint8_t)atoi(szVal);
+			g_config_ls.duration = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_gain") == 0)
 		{
-			g_config_ls.gain = (uint8_t)atoi(szVal);
+			g_config_ls.gain = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_leds") == 0)
 		{
-			g_config_ls.leds = (uint8_t)atoi(szVal);
+			g_config_ls.leds = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_led_drv") == 0)
 		{
-			g_config_ls.led_drv = (uint8_t)atoi(szVal);
+			g_config_ls.led_drv = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_norecal") == 0)
 		{
-			g_config_ls.norecal = (uint8_t)atoi(szVal);
+			g_config_ls.norecal = (uint8_t)val;
 		}
 		else if (strcasecmp(szParam, "ls_debug") == 0)
 		{
-			g_config_ls.debug = (uint8_t)atoi(szVal);
+			g_config_ls.debug = (uint8_t)val;
 		}
-		else if (strcasecmp(szParam, "ls_samples") == 0)
+		else if (strcasecmp(szParam, "ls_flags") == 0)
 		{
-			g_config_ls.samples = (uint8_t)atoi(szVal);
-		}
-		else if (strcasecmp(szParam, "ls_dac_ref") == 0)
-		{
-			g_config_ls.dac_ref = (uint8_t)atoi(szVal);
-		}
-		else if (strcasecmp(szParam, "ls_adc_bits") == 0)
-		{
-			g_config_ls.adc_bits = (uint8_t)atoi(szVal);
-		}
-		else if (strcasecmp(szParam, "ls_adc_ref") == 0)
-		{
-			g_config_ls.adc_ref = (uint8_t)atoi(szVal);
+			g_config_ls.flags = (uint8_t)val;
 		}
 		// ---------------- Accel ---------------------
 		else if (strcasecmp(szParam, "accel_slow_rate") == 0)
