@@ -218,6 +218,9 @@ int exec_fwupdate()
 	WEDFirmwareCommand fwcmd;
 	memset(&fwcmd, 0, sizeof(fwcmd));
 	fwcmd.pkt_type = WED_FIRMWARE_INIT;
+	fread(fwcmd.header, WED_FW_HEADER_SIZE, 1, g_fwImageFile);
+	fseek(g_fwImageFile, 0, SEEK_SET);
+	g_fwImageWrittenSize = 0;
 
 	int ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
 	if (ret)
@@ -428,6 +431,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen)
 		fwcmd.pkt_type = WED_FIRMWARE_UPDATE;
 
 		ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
+		printf("\nUpdating done.");
 		// Done with command
 		g_state = STATE_COUNT;
 	}
@@ -1010,9 +1014,16 @@ int set_update_file(const char * szName)
 	}
 	fseek(g_fwImageFile, 0, SEEK_END);
 	g_fwImageSize = ftell(g_fwImageFile);
+	// TODO: Do more local checks to make sure image is valid
+	if (g_fwImageSize < WED_FW_HEADER_SIZE + WED_FW_BLOCK_SIZE)
+	{
+		fprintf(stderr, "Firmware file (%s) not valid!\n", szName);
+		return -1;
+	}
+
 	g_fwImageWrittenSize = 0;
 	fseek(g_fwImageFile, 0, SEEK_SET);
-	// Do some local checks to make sure image is valid
+
 	g_cmd = AMIIGO_CMD_FWUPDATE;
 	return 0;
 }
@@ -1359,13 +1370,18 @@ int main(int argc, char **argv)
 
     for(;;)
     {
-    	stop_time = time(NULL);
-    	double diff = difftime(stop_time, start_time);
-    	// Keep-alive by readin status every 60s
-    	if (diff > 60)
+    	// No need to keep-alive during firmware update
+    	if (g_state != STATE_FWSTATUS_WAIT)
     	{
-    		start_time = stop_time;
-    		exec_read(g_char[AMIIGO_UUID_STATUS].value_handle);
+			stop_time = time(NULL);
+			double diff = difftime(stop_time, start_time);
+			// Keep-alive by readin status every 60s
+			if (diff > 60)
+			{
+				printf(" (Keep alive)\n");
+				start_time = stop_time;
+				exec_read(g_char[AMIIGO_UUID_STATUS].value_handle);
+			}
     	}
 
     	FD_ZERO(&read_fds);
