@@ -130,6 +130,8 @@ uint32_t g_total_logs = 0; // Total number of logs
 FILE * g_logFile[MAX_LOG_ENTRIES] = {NULL};
 
 FILE * g_fwImageFile = NULL; // Firmware image file
+uint32_t g_fwImageSize = 0; // Firmware image size in bytes
+uint32_t g_fwImageWrittenSize = 0;
 
 enum DISCOVERY_STATE {
 	STATE_NONE = 0,
@@ -137,8 +139,7 @@ enum DISCOVERY_STATE {
 	STATE_VERSION,
 	STATE_STATUS,
 	STATE_DOWNLOAD,
-	STATE_FWSTATUS_WAIT_UPLOAD,
-	STATE_FWSTATUS_WAIT_UPDATE,
+	STATE_FWSTATUS_WAIT,
 
 	STATE_COUNT, // This must be the last
 } g_state = STATE_NONE;
@@ -206,7 +207,7 @@ int exec_write(uint16_t handle, const uint8_t * value, size_t vlen)
 // Start firmware update procedure
 int exec_fwupdate()
 {
-	g_state = STATE_FWSTATUS_WAIT_UPLOAD;
+	g_state = STATE_FWSTATUS_WAIT;
 
 	uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
 	if (handle == 0)
@@ -357,6 +358,7 @@ FILE * log_file_open(const char * szBase)
 // Firmware update in progress
 int process_fwstatus(uint8_t * buf, ssize_t buflen)
 {
+	int ret = 0;
 	WEDFirmwareStatus fwstatus;
 	memset(&fwstatus, 0, sizeof(fwstatus));
 	fwstatus.status = buf[1];
@@ -366,7 +368,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen)
 
 	if (fwstatus.status == WED_FWSTATUS_WAIT || fwstatus.status == WED_FWSTATUS_IDLE)
 	{
-		return exec_read(handle); // Continue polling
+		ret = exec_read(handle); // Continue polling
 	}
 	else if (fwstatus.status == WED_FWSTATUS_ERROR)
 	{
@@ -391,7 +393,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen)
 			fprintf(stderr, "Unknown error\n");
 			break;
 		}
-		return -1;
+		ret = -1;
 	}
 	else if (fwstatus.status == WED_FWSTATUS_UPLOAD_READY)
 	{
@@ -404,31 +406,42 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen)
 			size_t len = fread(fwdata.data, WED_FW_BLOCK_SIZE, 1, g_fwImageFile);
 			if (len <= 0)
 				break;
+			g_fwImageWrittenSize += len;
 			exec_write(handle, (uint8_t *)&fwdata, len);
+			printf("\rUpdating ... %u out of %u  (%2.0f%%)", g_fwImageWrittenSize, g_fwImageSize, g_fwImageWrittenSize * 1.0 / g_fwImageSize);
 		}
 		// Done uploding in our end
-		if (feof(g_fwImageFile))
+		if (feof(g_fwImageFile) || g_fwImageWrittenSize == g_fwImageSize)
 		{
 			WEDFirmwareCommand fwcmd;
 			memset(&fwcmd, 0, sizeof(fwcmd));
 			fwcmd.pkt_type = WED_FIRMWARE_DATA_DONE;
 
-			int ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
-			if (ret)
-				return -1;
-			printf("\rUpdating ... (upload done)");
+			ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
 		}
-		return exec_read(handle); // Continue polling
+		ret = exec_read(handle); // Continue polling
 	}
 	else if (fwstatus.status == WED_FWSTATUS_UPDATE_READY)
 	{
+		WEDFirmwareCommand fwcmd;
+		memset(&fwcmd, 0, sizeof(fwcmd));
+		fwcmd.pkt_type = WED_FIRMWARE_UPDATE;
+
+		ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
+		// Done with command
+		g_state = STATE_COUNT;
 	}
 	else
 	{
 		fprintf(stderr, "Unknown firmware update state (%u)\n", fwstatus.status);
-		return -1;
+		ret = -1;
 	}
-	return 0;
+	if (ret)
+	{
+		// Reset CPU on any error during firmware update
+		exec_reset(AMIIGO_CMD_RESET_CPU);
+	}
+	return ret;
 }
 
 // Continue downloading packets
@@ -919,10 +932,9 @@ int process_data(uint8_t * buf, ssize_t buflen)
 			// This must be keep-alive
 			process_status(buf, buflen);
 			break;
-		case STATE_FWSTATUS_WAIT_UPLOAD:
-		case STATE_FWSTATUS_WAIT_UPDATE:
+		case STATE_FWSTATUS_WAIT:
 			// Act upon new firmware update status
-			process_fwstatus(buf, buflen);
+			ret = process_fwstatus(buf, buflen);
 			break;
 		default:
 			dump_buffer(buf, buflen);
@@ -996,6 +1008,11 @@ int set_update_file(const char * szName)
 		fprintf(stderr, "Firmware image file (%s) not accessible!\n", szName);
 		return -1;
 	}
+	fseek(g_fwImageFile, 0, SEEK_END);
+	g_fwImageSize = ftell(g_fwImageFile);
+	g_fwImageWrittenSize = 0;
+	fseek(g_fwImageFile, 0, SEEK_SET);
+	// Do some local checks to make sure image is valid
 	g_cmd = AMIIGO_CMD_FWUPDATE;
 	return 0;
 }
@@ -1071,7 +1088,7 @@ int set_input_file(const char * szName)
 		}
 		else
 		{
-			fprintf(stderr, "Configuration parameter (%s) not recognized!\n", szName);
+			fprintf(stderr, "Configuration parameter %s in %s not recognized!\n", szParam, szName);
 			fclose(fp);
 			return -1;
 		}
