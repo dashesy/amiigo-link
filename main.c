@@ -23,6 +23,8 @@
 #include "hcitool.h"
 #include "amidefs.h"
 
+#define FWUP_HDR_ID 0x0101
+
 /******************************************************************************/
 typedef struct {
 	uint8* buf;
@@ -400,38 +402,50 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen)
 	}
 	else if (fwstatus.status == WED_FWSTATUS_UPLOAD_READY)
 	{
+
 		int i;
 		for (i = 0; i < WED_FW_STREAM_BLOCKS; ++i)
 		{
 			WEDFirmwareCommand fwdata;
 			memset(&fwdata, 0, sizeof(fwdata));
 			fwdata.pkt_type = WED_FIRMWARE_DATA_BLOCK;
-			size_t len = fread(fwdata.data, WED_FW_BLOCK_SIZE, 1, g_fwImageFile);
-			if (len <= 0)
+			size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE, g_fwImageFile);
+			if (len < WED_FW_BLOCK_SIZE)
 				break;
 			g_fwImageWrittenSize += len;
-			exec_write(handle, (uint8_t *)&fwdata, len);
-			printf("\rUpdating ... %u out of %u  (%2.0f%%)", g_fwImageWrittenSize, g_fwImageSize, g_fwImageWrittenSize * 1.0 / g_fwImageSize);
+			exec_write(handle, (uint8_t *)&fwdata, sizeof(fwdata));
+			if (feof(g_fwImageFile) || g_fwImageWrittenSize == g_fwImageSize)
+				break;
 		}
+		printf("\rUpdating ... %u out of %u  (%2.0f%%)", g_fwImageWrittenSize, g_fwImageSize, (g_fwImageWrittenSize * 100.0) / g_fwImageSize);
+
 		// Done uploding in our end
 		if (feof(g_fwImageFile) || g_fwImageWrittenSize == g_fwImageSize)
 		{
+			printf(" (data done)");
 			WEDFirmwareCommand fwcmd;
 			memset(&fwcmd, 0, sizeof(fwcmd));
 			fwcmd.pkt_type = WED_FIRMWARE_DATA_DONE;
 
 			ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
 		}
+		fflush(stdout);
+
 		ret = exec_read(handle); // Continue polling
 	}
 	else if (fwstatus.status == WED_FWSTATUS_UPDATE_READY)
 	{
+		if (g_fwImageWrittenSize != g_fwImageSize)
+		{
+			fprintf(stderr, " Update not ready!\n");
+			return -1;
+		}
 		WEDFirmwareCommand fwcmd;
 		memset(&fwcmd, 0, sizeof(fwcmd));
 		fwcmd.pkt_type = WED_FIRMWARE_UPDATE;
 
 		ret = exec_write(handle, (uint8_t *)&fwcmd, sizeof(fwcmd));
-		printf("\nUpdating done.");
+		printf(" (Updating done)\n");
 		// Done with command
 		g_state = STATE_COUNT;
 	}
@@ -439,11 +453,6 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen)
 	{
 		fprintf(stderr, "Unknown firmware update state (%u)\n", fwstatus.status);
 		ret = -1;
-	}
-	if (ret)
-	{
-		// Reset CPU on any error during firmware update
-		exec_reset(AMIIGO_CMD_RESET_CPU);
 	}
 	return ret;
 }
@@ -1014,10 +1023,32 @@ int set_update_file(const char * szName)
 	}
 	fseek(g_fwImageFile, 0, SEEK_END);
 	g_fwImageSize = ftell(g_fwImageFile);
-	// TODO: Do more local checks to make sure image is valid
-	if (g_fwImageSize < WED_FW_HEADER_SIZE + WED_FW_BLOCK_SIZE)
+	fseek(g_fwImageFile, 0, SEEK_SET);
+	if (g_fwImageSize < WED_FW_HEADER_SIZE)
 	{
-		fprintf(stderr, "Firmware file (%s) not valid!\n", szName);
+		fprintf(stderr, "Firmware image file (%s) too small!\n", szName);
+		return -1;
+	}
+	WEDFirmwareCommand fwcmd;
+	memset(&fwcmd, 0, sizeof(fwcmd));
+	fwcmd.pkt_type = WED_FIRMWARE_INIT;
+	fread(fwcmd.header, WED_FW_HEADER_SIZE, 1, g_fwImageFile);
+
+	uint16_t * hdr = (uint16_t *)&fwcmd.header[0];
+	// TODO: check CRC
+	//uint16_t fw_crc = hdr[0];
+	uint16_t fw_id = hdr[1];
+	uint16_t fw_imgpages = hdr[2];
+
+	if (fw_id != FWUP_HDR_ID)
+	{
+		fprintf(stderr, "Firmware image (%s) invalid!\n", szName);
+		return -1;
+	}
+
+	if (WED_FW_BLOCK_SIZE * WED_FW_STREAM_BLOCKS * fw_imgpages != g_fwImageSize)
+	{
+		fprintf(stderr, "Firmware image (%s) invalid size!\n", szName);
 		return -1;
 	}
 
@@ -1419,13 +1450,20 @@ int main(int argc, char **argv)
     		// Process incoming data
     		ret = process_data(buf, buflen);
     		if (ret)
+    		{
     			fprintf(stderr, "main process_data() error\n");
+    			break;
+    		}
     		if (g_state == STATE_COUNT)
     			break; // Done the the command
     	}
     	if (kbhit() == 'q')
 			break;
-    }
+    } //end for(;;
+
+	// Reset CPU if need to exit in the middle of firmware update
+    if (g_state == STATE_FWSTATUS_WAIT)
+    	exec_reset(AMIIGO_CMD_RESET_CPU);
 
     printf("\n");
 
