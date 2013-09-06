@@ -656,14 +656,14 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             }
 
             break;
-            default:
-                packet_len = (buflen - payload);
+        default:
+            packet_len = (buflen - payload);
 
-                printf("Notification handle = 0x%04x value: ", handle);
-                for (i = payload; i < buflen; ++i)
-                    printf("%02x ", buf[i]);
-                printf("\n");
-                break;
+            printf("Notification handle = 0x%04x value: ", handle);
+            for (i = payload; i < buflen; ++i)
+                printf("%02x ", buf[i]);
+            printf("\n");
+            break;
         }
 
         // Move forward within aggregate packet
@@ -923,9 +923,9 @@ int process_data(uint8_t * buf, ssize_t buflen) {
             break;
         }
         break;
-        default:
-            dump_buffer(buf, buflen);
-            break;
+    default:
+        dump_buffer(buf, buflen);
+        break;
     }
 
     if (list != NULL)
