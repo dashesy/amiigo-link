@@ -473,25 +473,112 @@ int process_download(uint8_t * buf, ssize_t buflen) {
     WED_LOG_TYPE log_type = buf[payload] & 0x0F;
     while (payload < buflen) {
         g_total_logs++; // Total number of log points downloaded so far
+
         switch (log_type) {
         uint16_t val16;
         uint8_t field_count, nbits, prev_rate, reset_detected;
         uint8_t * pdu;
 
-    case WED_LOG_TIME:
-        packet_len = sizeof(g_logTime);
+        case WED_LOG_TIME:
+            packet_len = sizeof(g_logTime);
 
-        g_logTime.type = log_type;
-        g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
-        prev_rate = g_logTime.fast_rate;
-        g_logTime.fast_rate = buf[payload + 5];
-        reset_detected = g_logTime.fast_rate & 0x80;
-        g_logTime.fast_rate &= 0x0F;
+            g_logTime.type = log_type;
+            g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
+            prev_rate = g_logTime.fast_rate;
+            g_logTime.fast_rate = buf[payload + 5];
+            reset_detected = g_logTime.fast_rate & 0x80;
+            g_logTime.fast_rate &= 0x0F;
 
-        if (reset_detected)
-            printf("\nResume downloading logs after reset happened.\n");
+            if (reset_detected)
+                printf("\nResume downloading logs after reset happened.\n");
 
-        if (g_logTime.fast_rate != prev_rate || reset_detected) {
+            if (g_logTime.fast_rate != prev_rate || reset_detected) {
+                // Close log files, to have them split on next packet
+                for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
+                    if (g_logFile[i] != NULL) {
+                        fclose(g_logFile[i]);
+                        g_logFile[i] = NULL;
+                    }
+                }
+            }
+
+            break;
+        case WED_LOG_ACCEL:
+            packet_len = sizeof(g_logAccel);
+
+            if (g_logFile[log_type] == NULL) {
+                g_logFile[log_type] = log_file_open("Accel");
+                fprintf(g_logFile[log_type], "x,y,z\n");
+            }
+
+            g_logAccel.type = log_type;
+            for (i = 0; i < 3; ++i)
+                g_logAccel.accel[i] = buf[payload + 1 + i];
+            fprintf(g_logFile[log_type], "%d,%d,%d\n", g_logAccel.accel[0],
+                    g_logAccel.accel[1], g_logAccel.accel[2]);
+            break;
+        case WED_LOG_LS_CONFIG:
+            packet_len = sizeof(g_logLSConfig);
+
+            if (g_logFile[log_type] == NULL) {
+                g_logFile[log_type] = log_file_open("LS_Config");
+                fprintf(g_logFile[log_type],
+                        "dac_red,dac_ir,level_red,level_ir,gain,log_size\n");
+            }
+
+            g_logLSConfig.type = log_type;
+            g_logLSConfig.dac_red = buf[payload + 1];
+            g_logLSConfig.dac_ir = buf[payload + 2];
+            g_logLSConfig.level_red = buf[payload + 3];
+            g_logLSConfig.level_ir = buf[payload + 4];
+            g_logLSConfig.gain = buf[payload + 5];
+            g_logLSConfig.log_size = buf[payload + 6];
+            fprintf(g_logFile[log_type], "%u,%u,%u,%u,%u,%u\n",
+                    g_logLSConfig.dac_red, g_logLSConfig.dac_ir,
+                    g_logLSConfig.level_red, g_logLSConfig.level_ir,
+                    g_logLSConfig.gain, g_logLSConfig.log_size);
+            break;
+        case WED_LOG_LS_DATA:
+            packet_len = WEDLogLSDataSize(&buf[payload]);
+
+            if (g_logFile[log_type] == NULL) {
+                g_logFile[log_type] = log_file_open("LS_Data");
+            }
+
+            logLSData.type = log_type;
+            val16 = att_get_u16(&buf[payload + 1]);
+            field_count = ((val16 & 0xC000) >> 14) + 1;
+            if (field_count > 3) {
+                fprintf(stderr, "Invalid LS_DATA ignored\n");
+                break;
+            }
+            logLSData.val[0] = val16 & 0x3FFF;
+            for (i = 1; i < field_count; ++i)
+                logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
+
+            for (i = 0; i < field_count; ++i) {
+                fprintf(g_logFile[log_type], "%u", logLSData.val[i]);
+                if (i < field_count - 1)
+                    fprintf(g_logFile[log_type], ",");
+            }
+            fprintf(g_logFile[log_type], "\n");
+            break;
+        case WED_LOG_TEMP:
+            packet_len = sizeof(logTemp);
+
+            if (g_logFile[log_type] == NULL)
+                g_logFile[log_type] = log_file_open("Temp");
+
+            logTemp.type = log_type;
+            logTemp.temperature = att_get_u16(&buf[payload + 1]);
+            fprintf(g_logFile[log_type], "%d\n", logTemp.temperature);
+            break;
+        case WED_LOG_TAG:
+            packet_len = sizeof(g_logTag);
+
+            g_logTag.type = log_type;
+            g_logTag.tag = att_get_u32(&buf[payload + 1]);
+            printf("\nSplit on Tag %u\n", g_logTag.tag);
             // Close log files, to have them split on next packet
             for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
                 if (g_logFile[i] != NULL) {
@@ -499,170 +586,84 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                     g_logFile[i] = NULL;
                 }
             }
-        }
-
-        break;
-    case WED_LOG_ACCEL:
-        packet_len = sizeof(g_logAccel);
-
-        if (g_logFile[log_type] == NULL) {
-            g_logFile[log_type] = log_file_open("Accel");
-            fprintf(g_logFile[log_type], "x,y,z\n");
-        }
-
-        g_logAccel.type = log_type;
-        for (i = 0; i < 3; ++i)
-            g_logAccel.accel[i] = buf[payload + 1 + i];
-        fprintf(g_logFile[log_type], "%d,%d,%d\n", g_logAccel.accel[0],
-                g_logAccel.accel[1], g_logAccel.accel[2]);
-        break;
-    case WED_LOG_LS_CONFIG:
-        packet_len = sizeof(g_logLSConfig);
-
-        if (g_logFile[log_type] == NULL) {
-            g_logFile[log_type] = log_file_open("LS_Config");
-            fprintf(g_logFile[log_type],
-                    "dac_red,dac_ir,level_red,level_ir,gain,log_size\n");
-        }
-
-        g_logLSConfig.type = log_type;
-        g_logLSConfig.dac_red = buf[payload + 1];
-        g_logLSConfig.dac_ir = buf[payload + 2];
-        g_logLSConfig.level_red = buf[payload + 3];
-        g_logLSConfig.level_ir = buf[payload + 4];
-        g_logLSConfig.gain = buf[payload + 5];
-        g_logLSConfig.log_size = buf[payload + 6];
-        fprintf(g_logFile[log_type], "%u,%u,%u,%u,%u,%u\n",
-                g_logLSConfig.dac_red, g_logLSConfig.dac_ir,
-                g_logLSConfig.level_red, g_logLSConfig.level_ir,
-                g_logLSConfig.gain, g_logLSConfig.log_size);
-        break;
-    case WED_LOG_LS_DATA:
-        packet_len = WEDLogLSDataSize(&buf[payload]);
-
-        if (g_logFile[log_type] == NULL) {
-            g_logFile[log_type] = log_file_open("LS_Data");
-        }
-
-        logLSData.type = log_type;
-        val16 = att_get_u16(&buf[payload + 1]);
-        field_count = ((val16 & 0xC000) >> 14) + 1;
-        if (field_count > 3) {
-            fprintf(stderr, "Invalid LS_DATA ignored\n");
             break;
-        }
-        logLSData.val[0] = val16 & 0x3FFF;
-        for (i = 1; i < field_count; ++i)
-            logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
+        case WED_LOG_ACCEL_CMP:
+            packet_len = WEDLogAccelCmpSize(&buf[payload]);
 
-        for (i = 0; i < field_count; ++i) {
-            fprintf(g_logFile[log_type], "%u", logLSData.val[i]);
-            if (i < field_count - 1)
-                fprintf(g_logFile[log_type], ",");
-        }
-        fprintf(g_logFile[log_type], "\n");
-        break;
-    case WED_LOG_TEMP:
-        packet_len = sizeof(logTemp);
-
-        if (g_logFile[log_type] == NULL)
-            g_logFile[log_type] = log_file_open("Temp");
-
-        logTemp.type = log_type;
-        logTemp.temperature = att_get_u16(&buf[payload + 1]);
-        fprintf(g_logFile[log_type], "%d\n", logTemp.temperature);
-        break;
-    case WED_LOG_TAG:
-        packet_len = sizeof(g_logTag);
-
-        g_logTag.type = log_type;
-        g_logTag.tag = att_get_u32(&buf[payload + 1]);
-        printf("\nSplit on Tag %u\n", g_logTag.tag);
-        // Close log files, to have them split on next packet
-        for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
-            if (g_logFile[i] != NULL) {
-                fclose(g_logFile[i]);
-                g_logFile[i] = NULL;
-            }
-        }
-        break;
-    case WED_LOG_ACCEL_CMP:
-        packet_len = WEDLogAccelCmpSize(&buf[payload]);
-
-        logAccelCmp.type = log_type;
-        logAccelCmp.count_bits = buf[payload + 1];
-        field_count = (logAccelCmp.count_bits & 0xF) + 1;
-        g_total_logs += field_count;
-        nbits = 0;
-        switch ((logAccelCmp.count_bits & 0x70) >> 4) {
-        case WED_LOG_ACCEL_CMP_3_BIT:
-            nbits = 3;
-            break;
-        case WED_LOG_ACCEL_CMP_4_BIT:
-            nbits = 4;
-            break;
-        case WED_LOG_ACCEL_CMP_5_BIT:
-            nbits = 5;
-            break;
-        case WED_LOG_ACCEL_CMP_6_BIT:
-            nbits = 6;
-            break;
-        case WED_LOG_ACCEL_CMP_8_BIT:
-            nbits = 8;
-            // This is also uncompressed data
-            if (g_logFile[WED_LOG_ACCEL] == NULL) {
-                g_logFile[WED_LOG_ACCEL] = log_file_open("Accel");
-                fprintf(g_logFile[WED_LOG_ACCEL], "x,y,z\n");
-            }
-            break;
-        default:
-            break;
-        }
-        if (nbits == 0) {
-            fprintf(stderr, "Invalid ACCEL_CMP ignored\n");
-            break;
-        }
-
-        // We must first get at least one uncompressed accel log
-        if (g_logFile[WED_LOG_ACCEL] == NULL)
-            break;
-
-        pdu = &buf[payload];
-        pdu += 2;
-
-        if (nbits == 8) {
-            while (field_count--) {
-                for (i = 0; i < 3; ++i)
-                    g_logAccel.accel[i] = pdu[i];
-                pdu += 3;
-                fprintf(g_logFile[WED_LOG_ACCEL], "%d,%d,%d\n",
-                        g_logAccel.accel[0], g_logAccel.accel[1],
-                        g_logAccel.accel[2]);
-            }
-        } else {
-            GetBits gb;
-            cmpGetBitsInit(&gb, pdu);
-            while (field_count--) {
-                uint8 i;
-                for (i = 0; i < 3; i++) {
-                    int8 diff = cmpGetBits(&gb, nbits);
-                    g_logAccel.accel[i] += diff;
+            logAccelCmp.type = log_type;
+            logAccelCmp.count_bits = buf[payload + 1];
+            field_count = (logAccelCmp.count_bits & 0xF) + 1;
+            g_total_logs += field_count;
+            nbits = 0;
+            switch ((logAccelCmp.count_bits & 0x70) >> 4) {
+            case WED_LOG_ACCEL_CMP_3_BIT:
+                nbits = 3;
+                break;
+            case WED_LOG_ACCEL_CMP_4_BIT:
+                nbits = 4;
+                break;
+            case WED_LOG_ACCEL_CMP_5_BIT:
+                nbits = 5;
+                break;
+            case WED_LOG_ACCEL_CMP_6_BIT:
+                nbits = 6;
+                break;
+            case WED_LOG_ACCEL_CMP_8_BIT:
+                nbits = 8;
+                // This is also uncompressed data
+                if (g_logFile[WED_LOG_ACCEL] == NULL) {
+                    g_logFile[WED_LOG_ACCEL] = log_file_open("Accel");
+                    fprintf(g_logFile[WED_LOG_ACCEL], "x,y,z\n");
                 }
-                fprintf(g_logFile[WED_LOG_ACCEL], "%d,%d,%d\n",
-                        g_logAccel.accel[0], g_logAccel.accel[1],
-                        g_logAccel.accel[2]);
+                break;
+            default:
+                break;
             }
-        }
+            if (nbits == 0) {
+                fprintf(stderr, "Invalid ACCEL_CMP ignored\n");
+                break;
+            }
 
-        break;
-    default:
-        packet_len = (buflen - payload);
+            // We must first get at least one uncompressed accel log
+            if (g_logFile[WED_LOG_ACCEL] == NULL)
+                break;
 
-        printf("Notification handle = 0x%04x value: ", handle);
-        for (i = payload; i < buflen; ++i)
-            printf("%02x ", buf[i]);
-        printf("\n");
-        break;
+            pdu = &buf[payload];
+            pdu += 2;
+
+            if (nbits == 8) {
+                while (field_count--) {
+                    for (i = 0; i < 3; ++i)
+                        g_logAccel.accel[i] = pdu[i];
+                    pdu += 3;
+                    fprintf(g_logFile[WED_LOG_ACCEL], "%d,%d,%d\n",
+                            g_logAccel.accel[0], g_logAccel.accel[1],
+                            g_logAccel.accel[2]);
+                }
+            } else {
+                GetBits gb;
+                cmpGetBitsInit(&gb, pdu);
+                while (field_count--) {
+                    uint8 i;
+                    for (i = 0; i < 3; i++) {
+                        int8 diff = cmpGetBits(&gb, nbits);
+                        g_logAccel.accel[i] += diff;
+                    }
+                    fprintf(g_logFile[WED_LOG_ACCEL], "%d,%d,%d\n",
+                            g_logAccel.accel[0], g_logAccel.accel[1],
+                            g_logAccel.accel[2]);
+                }
+            }
+
+            break;
+            default:
+                packet_len = (buflen - payload);
+
+                printf("Notification handle = 0x%04x value: ", handle);
+                for (i = payload; i < buflen; ++i)
+                    printf("%02x ", buf[i]);
+                printf("\n");
+                break;
         }
 
         // Move forward within aggregate packet
@@ -790,15 +791,16 @@ int process_status(uint8_t * buf, ssize_t buflen) {
 
     const int BATT_MAX = 144;
     const int BATT_MIN = 122;
-    float fBatteryLevel = (g_status.battery_level - BATT_MIN) * 100.0 / (BATT_MAX - BATT_MIN);
+    float fBatteryLevel = (g_status.battery_level - BATT_MIN) * 100.0
+            / (BATT_MAX - BATT_MIN);
     if (fBatteryLevel > 100)
         fBatteryLevel = 100;
     if (fBatteryLevel < 0)
         fBatteryLevel = 0;
 
-    printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %2.1f%%\t Time: %3.3f s\t",
-            g_szBuild, g_szVersion, g_status.num_log_entries,
-            fBatteryLevel,
+    printf(
+            "\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %2.1f%%\t Time: %3.3f s\t",
+            g_szBuild, g_szVersion, g_status.num_log_entries, fBatteryLevel,
             g_status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC);
 
     if (g_status.status & STATUS_UPDATE)
@@ -921,9 +923,9 @@ int process_data(uint8_t * buf, ssize_t buflen) {
             break;
         }
         break;
-    default:
-        dump_buffer(buf, buflen);
-        break;
+        default:
+            dump_buffer(buf, buflen);
+            break;
     }
 
     if (list != NULL)
@@ -1102,9 +1104,9 @@ static void do_command_line(int argc, char * const argv[]) {
         int option_index = 0;
         static struct option long_options[] = { { "verbose", 0, 0, 'V' }, {
                 "lescan", 0, 0, 'l' }, { "i", 1, 0, 'i' }, { "adapter", 1, 0,
-                'i' }, { "b", 1, 0, 'b' }, { "device", 1, 0, 'b' }, { "command",
-                1, 0, 'x' }, { "c", 1, 0, 'x' }, { "config", 1, 0, 'f' }, {
-                "fwupdate", 1, 0, 'u' }, { "help", 0, 0, '?' }, { 0, 0, 0, 0 } };
+                        'i' }, { "b", 1, 0, 'b' }, { "device", 1, 0, 'b' }, { "command",
+                                1, 0, 'x' }, { "c", 1, 0, 'x' }, { "config", 1, 0, 'f' }, {
+                                        "fwupdate", 1, 0, 'u' }, { "help", 0, 0, '?' }, { 0, 0, 0, 0 } };
 
         c = getopt_long(argc, argv, "Vl?", long_options, &option_index);
         if (c == -1)
@@ -1246,7 +1248,7 @@ int main(int argc, char **argv) {
     opts.cid = ATT_CID;
 
     g_sock = bt_io_connect(&opts);
-    if (g_sock < -1) {
+    if (g_sock <= 0) {
         fprintf(stderr, "bt_io_connect (%d)\n", errno);
         return -1;
     }
@@ -1358,7 +1360,7 @@ int main(int argc, char **argv) {
 
     printf("\n");
 
-    // Close soecket
+    // Close socket
     shutdown(g_sock, SHUT_RDWR);
     close(g_sock);
 

@@ -355,7 +355,7 @@ struct att_data_list *dec_read_by_grp_resp(const uint8_t *pdu, size_t len) {
 uint16_t enc_find_by_type_req(uint16_t start, uint16_t end, bt_uuid_t *uuid,
         const uint8_t *value, size_t vlen, uint8_t *pdu, size_t len) {
     uint16_t min_len = sizeof(pdu[0]) + sizeof(start) + sizeof(end)
-            + sizeof(uint16_t);
+                    + sizeof(uint16_t);
 
     if (pdu == NULL)
         return 0;
@@ -389,7 +389,7 @@ uint16_t dec_find_by_type_req(const uint8_t *pdu, size_t len, uint16_t *start,
         uint16_t *end, bt_uuid_t *uuid, uint8_t *value, size_t *vlen) {
     size_t valuelen;
     uint16_t min_len = sizeof(pdu[0]) + sizeof(*start) + sizeof(*end)
-            + sizeof(uint16_t);
+                    + sizeof(uint16_t);
 
     if (pdu == NULL)
         return 0;
@@ -775,7 +775,7 @@ ssize_t dec_read_resp(const uint8_t *pdu, size_t len, uint8_t *value,
 uint16_t enc_error_resp(uint8_t opcode, uint16_t handle, uint8_t status,
         uint8_t *pdu, size_t len) {
     const uint16_t min_len = sizeof(pdu[0]) + sizeof(opcode) + sizeof(handle)
-            + sizeof(status);
+                    + sizeof(status);
     uint16_t u16;
 
     if (len < min_len)
@@ -1202,8 +1202,8 @@ uint16_t dec_exec_write_resp(const uint8_t *pdu, size_t len) {
 //---------------------------- UUID ----------------------------------------
 #if __BYTE_ORDER == __BIG_ENDIAN
 static uint128_t bluetooth_base_uuid = {
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
-        0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB}
+        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+                0x80, 0x00, 0x00, 0x80, 0x5F, 0x9B, 0x34, 0xFB}
 };
 
 #define BASE_UUID16_OFFSET	2
@@ -1327,7 +1327,7 @@ int bt_uuid_to_string(const bt_uuid_t *uuid, char *str, size_t n) {
                 ntohs(data1), ntohs(data2), ntohs(data3), ntohl(data4),
                 ntohs(data5));
     }
-        break;
+    break;
     default:
         snprintf(str, n, "Type of UUID (%x) unknown.", uuid->type);
         return -EINVAL; /* Enum type of UUID not set */

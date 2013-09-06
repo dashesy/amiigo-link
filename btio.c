@@ -183,9 +183,9 @@ static int rfcomm_set_master(int sock, int master) {
 
 static int l2cap_set_lm(int sock, int level) {
     int lm_map[] = { 0,
-    L2CAP_LM_AUTH,
-    L2CAP_LM_AUTH | L2CAP_LM_ENCRYPT,
-    L2CAP_LM_AUTH | L2CAP_LM_ENCRYPT | L2CAP_LM_SECURE, }, opt = lm_map[level];
+            L2CAP_LM_AUTH,
+            L2CAP_LM_AUTH | L2CAP_LM_ENCRYPT,
+            L2CAP_LM_AUTH | L2CAP_LM_ENCRYPT | L2CAP_LM_SECURE, }, opt = lm_map[level];
 
     if (setsockopt(sock, SOL_L2CAP, L2CAP_LM, &opt, sizeof(opt)) < 0)
         return -errno;
@@ -195,10 +195,10 @@ static int l2cap_set_lm(int sock, int level) {
 
 static int rfcomm_set_lm(int sock, int level) {
     int lm_map[] = { 0,
-    RFCOMM_LM_AUTH,
-    RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT,
-    RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT | RFCOMM_LM_SECURE, }, opt =
-            lm_map[level];
+            RFCOMM_LM_AUTH,
+            RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT,
+            RFCOMM_LM_AUTH | RFCOMM_LM_ENCRYPT | RFCOMM_LM_SECURE, }, opt =
+                    lm_map[level];
 
     if (setsockopt(sock, SOL_RFCOMM, RFCOMM_LM, &opt, sizeof(opt)) < 0)
         return -errno;
@@ -575,13 +575,13 @@ static bool l2cap_get(int sock, BtIOOption opt1, va_list args) {
         case BT_IO_OPT_DEFER_TIMEOUT:
             len = sizeof(int);
             if (getsockopt(sock, SOL_BLUETOOTH, BT_DEFER_SETUP,
-            va_arg(args, int *), &len) < 0) {
+                    va_arg(args, int *), &len) < 0) {
                 return false;
             }
             break;
         case BT_IO_OPT_SEC_LEVEL:
             if (!get_sec_level(sock, BT_IO_L2CAP,
-            va_arg(args, int *)))
+                    va_arg(args, int *)))
                 return false;
             break;
         case BT_IO_OPT_KEY_SIZE:
@@ -590,13 +590,13 @@ static bool l2cap_get(int sock, BtIOOption opt1, va_list args) {
             break;
         case BT_IO_OPT_PSM:
             *(va_arg(args, uint16_t *)) = src.l2_psm ?
-            btohs(src.l2_psm) :
-                                                       btohs(dst.l2_psm);
+                    btohs(src.l2_psm) :
+                    btohs(dst.l2_psm);
             break;
         case BT_IO_OPT_CID:
             *(va_arg(args, uint16_t *)) = src.l2_cid ?
-            btohs(src.l2_cid) :
-                                                       btohs(dst.l2_cid);
+                    btohs(src.l2_cid) :
+                    btohs(dst.l2_cid);
             break;
         case BT_IO_OPT_OMTU:
             *(va_arg(args, uint16_t *)) = l2o.omtu;
@@ -694,13 +694,13 @@ static bool rfcomm_get(int sock, BtIOOption opt1, va_list args) {
         case BT_IO_OPT_DEFER_TIMEOUT:
             len = sizeof(int);
             if (getsockopt(sock, SOL_BLUETOOTH, BT_DEFER_SETUP,
-            va_arg(args, int *), &len) < 0) {
+                    va_arg(args, int *), &len) < 0) {
                 return false;
             }
             break;
         case BT_IO_OPT_SEC_LEVEL:
             if (!get_sec_level(sock, BT_IO_RFCOMM,
-            va_arg(args, int *)))
+                    va_arg(args, int *)))
                 return false;
             break;
         case BT_IO_OPT_CHANNEL:

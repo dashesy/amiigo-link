@@ -30,12 +30,12 @@ extern "C" {
 
 // Base UUID: CCA30000-78C6-4785-9E45-0887D451317C
 #define AMI_UUID(uuid) \
-	0x7C, 0x31, 0x51, 0xD4, 0x87, 0x08, \
-	0x45, 0x9E, \
-	0x85, 0x47, \
-	0xC6, 0x78, \
-	LO_UINT16(uuid), HI_UINT16(uuid), \
-	0xA3, 0xCC
+        0x7C, 0x31, 0x51, 0xD4, 0x87, 0x08, \
+        0x45, 0x9E, \
+        0x85, 0x47, \
+        0xC6, 0x78, \
+        LO_UINT16(uuid), HI_UINT16(uuid), \
+        0xA3, 0xCC
 
 #define AMI_ID16(id) BUILD_UINT16(id[12], id[13])
 
@@ -93,7 +93,7 @@ typedef struct {
     // Current time in WED_TIME_TICKS_PER_SEC
     uint32 cur_time;
 
-// last maint tag written to log
+    // last maint tag written to log
     uint8 cur_tag[WED_TAG_SIZE];
 }PACKED WEDStatus;
 
@@ -502,10 +502,10 @@ update() {
         ble_read(WED_UUID_FIRMWARE, status);
 
         if (status.status == WED_FWSTATUS_WAIT)
-        continue;
+            continue;
 
         if (status.status != WED_FWSTATUS_UPLOAD_READY)
-        return ERROR;
+            return ERROR;
 
         for (int i = 0; i < WED_FW_STREAM_BLOCKS; i++) {
             WEDFirmwareCommand data = {WED_FIRMWARE_DATA_BLOCK};
@@ -522,10 +522,10 @@ update() {
         ble_read(WED_UUID_FIRMWARE, status);
 
         if (status.status == WED_FWSTATUS_WAIT)
-        continue;
+            continue;
 
         if (status.status != WED_FWSTATUS_UPDATE_READY)
-        return ERROR;
+            return ERROR;
     }
 
     WEDFirmwareCommand update = {WED_FIRMWARE_UPDATE};
