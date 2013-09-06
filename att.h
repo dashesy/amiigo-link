@@ -63,7 +63,6 @@
 #define GATT_CLIENT_CHARAC_CFG_NOTIF_BIT	0x0001
 #define GATT_CLIENT_CHARAC_CFG_IND_BIT		0x0002
 
-
 // ------------------------------------ UUID -----------------------------
 #define GENERIC_AUDIO_UUID	"00001203-0000-1000-8000-00805f9b34fb"
 
@@ -139,17 +138,14 @@
 #define OBEX_MAP_UUID		"00001134-0000-1000-8000-00805f9b34fb"
 
 typedef struct {
-	enum {
-		BT_UUID_UNSPEC = 0,
-		BT_UUID16 = 16,
-		BT_UUID32 = 32,
-		BT_UUID128 = 128,
-	} type;
-	union {
-		uint16_t  u16;
-		uint32_t  u32;
-		uint128_t u128;
-	} value;
+    enum {
+        BT_UUID_UNSPEC = 0, BT_UUID16 = 16, BT_UUID32 = 32, BT_UUID128 = 128,
+    } type;
+    union {
+        uint16_t u16;
+        uint32_t u32;
+        uint128_t u128;
+    } value;
 } bt_uuid_t;
 
 int bt_uuid_strcmp(const void *a, const void *b);
@@ -251,34 +247,33 @@ bool is_response(uint8_t opcode);
 uint8_t opcode2expected(uint8_t opcode);
 
 struct att_data_list {
-	uint16_t num;
-	uint16_t len;
-	uint8_t **data;
+    uint16_t num;
+    uint16_t len;
+    uint8_t **data;
 };
 
 struct att_range {
-	uint16_t start;
-	uint16_t end;
+    uint16_t start;
+    uint16_t end;
 };
 
 struct gatt_primary {
-	bt_uuid_t uuid;
-	struct att_range range;
+    bt_uuid_t uuid;
+    struct att_range range;
 };
 
 struct gatt_included {
-	bt_uuid_t uuid;
-	uint16_t handle;
-	struct att_range range;
+    bt_uuid_t uuid;
+    uint16_t handle;
+    struct att_range range;
 };
 
 struct gatt_char {
-	bt_uuid_t uuid;
-	uint16_t handle;
-	uint8_t properties;
-	uint16_t value_handle;
+    bt_uuid_t uuid;
+    uint16_t handle;
+    uint8_t properties;
+    uint16_t value_handle;
 };
-
 
 #define MAX_LEN_UUID_STR 37
 
@@ -286,92 +281,79 @@ int bt_uuid_to_string(const bt_uuid_t *uuid, char *str, size_t n);
 int bt_string_to_uuid(bt_uuid_t *uuid, const char *string);
 
 /* These functions do byte conversion */
-static inline uint8_t att_get_u8(const void *ptr)
-{
-	const uint8_t *u8_ptr = (const uint8_t *)ptr;
-	return bt_get_unaligned(u8_ptr);
+static inline uint8_t att_get_u8(const void *ptr) {
+    const uint8_t *u8_ptr = (const uint8_t *) ptr;
+    return bt_get_unaligned(u8_ptr);
 }
 
-static inline uint16_t att_get_u16(const void *ptr)
-{
-	const uint16_t *u16_ptr = (const uint16_t *)ptr;
-	return btohs(bt_get_unaligned(u16_ptr));
+static inline uint16_t att_get_u16(const void *ptr) {
+    const uint16_t *u16_ptr = (const uint16_t *) ptr;
+    return btohs(bt_get_unaligned(u16_ptr));
 }
 
-static inline uint32_t att_get_u32(const void *ptr)
-{
-	const uint32_t *u32_ptr = (const uint32_t *)ptr;
-	return btohl(bt_get_unaligned(u32_ptr));
+static inline uint32_t att_get_u32(const void *ptr) {
+    const uint32_t *u32_ptr = (const uint32_t *) ptr;
+    return btohl(bt_get_unaligned(u32_ptr));
 }
 
-static inline uint128_t att_get_u128(const void *ptr)
-{
-	const uint128_t *u128_ptr = (const uint128_t *)ptr;
-	uint128_t dst;
+static inline uint128_t att_get_u128(const void *ptr) {
+    const uint128_t *u128_ptr = (const uint128_t *) ptr;
+    uint128_t dst;
 
-	btoh128(u128_ptr, &dst);
+    btoh128(u128_ptr, &dst);
 
-	return dst;
+    return dst;
 }
 
-static inline void att_put_u8(uint8_t src, void *dst)
-{
-	bt_put_unaligned(src, (uint8_t *) dst);
+static inline void att_put_u8(uint8_t src, void *dst) {
+    bt_put_unaligned(src, (uint8_t *) dst);
 }
 
-static inline void att_put_u16(uint16_t src, void *dst)
-{
-	bt_put_unaligned(htobs(src), (uint16_t *) dst);
+static inline void att_put_u16(uint16_t src, void *dst) {
+    bt_put_unaligned(htobs(src), (uint16_t *) dst);
 }
 
-static inline void att_put_u32(uint32_t src, void *dst)
-{
-	bt_put_unaligned(htobl(src), (uint32_t *) dst);
+static inline void att_put_u32(uint32_t src, void *dst) {
+    bt_put_unaligned(htobl(src), (uint32_t *) dst);
 }
 
-static inline void att_put_u128(uint128_t src, void *dst)
-{
-	uint128_t *d128 = (uint128_t *)dst;
+static inline void att_put_u128(uint128_t src, void *dst) {
+    uint128_t *d128 = (uint128_t *) dst;
 
-	htob128(&src, d128);
+    htob128(&src, d128);
 }
 
-static inline void att_put_uuid16(bt_uuid_t src, void *dst)
-{
-	att_put_u16(src.value.u16, dst);
+static inline void att_put_uuid16(bt_uuid_t src, void *dst) {
+    att_put_u16(src.value.u16, dst);
 }
 
-static inline void att_put_uuid128(bt_uuid_t src, void *dst)
-{
-	att_put_u128(src.value.u128, dst);
+static inline void att_put_uuid128(bt_uuid_t src, void *dst) {
+    att_put_u128(src.value.u128, dst);
 }
 
-static inline void att_put_uuid(bt_uuid_t src, void *dst)
-{
-	if (src.type == BT_UUID16)
-		att_put_uuid16(src, dst);
-	else
-		att_put_uuid128(src, dst);
+static inline void att_put_uuid(bt_uuid_t src, void *dst) {
+    if (src.type == BT_UUID16)
+        att_put_uuid16(src, dst);
+    else
+        att_put_uuid128(src, dst);
 }
 
-static inline bt_uuid_t att_get_uuid16(const void *ptr)
-{
-	bt_uuid_t uuid;
+static inline bt_uuid_t att_get_uuid16(const void *ptr) {
+    bt_uuid_t uuid;
 
-	bt_uuid16_create(&uuid, att_get_u16(ptr));
+    bt_uuid16_create(&uuid, att_get_u16(ptr));
 
-	return uuid;
+    return uuid;
 }
 
-static inline bt_uuid_t att_get_uuid128(const void *ptr)
-{
-	bt_uuid_t uuid;
-	uint128_t value;
+static inline bt_uuid_t att_get_uuid128(const void *ptr) {
+    bt_uuid_t uuid;
+    uint128_t value;
 
-	value  = att_get_u128(ptr);
-	bt_uuid128_create(&uuid, value);
+    value = att_get_u128(ptr);
+    bt_uuid128_create(&uuid, value);
 
-	return uuid;
+    return uuid;
 }
 
 struct att_data_list *att_data_list_alloc(uint16_t num, uint16_t len);
@@ -381,61 +363,60 @@ const char *att_ecode2str(uint8_t status);
 const char *att_op2str(uint8_t op);
 
 uint16_t enc_read_by_grp_req(uint16_t start, uint16_t end, bt_uuid_t *uuid,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 uint16_t dec_read_by_grp_req(const uint8_t *pdu, size_t len, uint16_t *start,
-					uint16_t *end, bt_uuid_t *uuid);
+        uint16_t *end, bt_uuid_t *uuid);
 uint16_t enc_read_by_grp_resp(struct att_data_list *list, uint8_t *pdu,
-								size_t len);
+        size_t len);
 uint16_t enc_find_by_type_req(uint16_t start, uint16_t end, bt_uuid_t *uuid,
-				const uint8_t *value, size_t vlen, uint8_t *pdu,
-				size_t len);
+        const uint8_t *value, size_t vlen, uint8_t *pdu, size_t len);
 uint16_t dec_find_by_type_req(const uint8_t *pdu, size_t len, uint16_t *start,
-		uint16_t *end, bt_uuid_t *uuid, uint8_t *value, size_t *vlen);
+        uint16_t *end, bt_uuid_t *uuid, uint8_t *value, size_t *vlen);
 struct att_data_list *dec_read_by_grp_resp(const uint8_t *pdu, size_t len);
 uint16_t enc_read_by_type_req(uint16_t start, uint16_t end, bt_uuid_t *uuid,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 uint16_t dec_read_by_type_req(const uint8_t *pdu, size_t len, uint16_t *start,
-					uint16_t *end, bt_uuid_t *uuid);
+        uint16_t *end, bt_uuid_t *uuid);
 uint16_t enc_read_by_type_resp(struct att_data_list *list, uint8_t *pdu,
-								size_t len);
+        size_t len);
 uint16_t enc_write_cmd(uint16_t handle, const uint8_t *value, size_t vlen,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 uint16_t dec_write_cmd(const uint8_t *pdu, size_t len, uint16_t *handle,
-						uint8_t *value, size_t *vlen);
+        uint8_t *value, size_t *vlen);
 struct att_data_list *dec_read_by_type_resp(const uint8_t *pdu, size_t len);
 uint16_t enc_write_req(uint16_t handle, const uint8_t *value, size_t vlen,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 uint16_t dec_write_req(const uint8_t *pdu, size_t len, uint16_t *handle,
-						uint8_t *value, size_t *vlen);
+        uint8_t *value, size_t *vlen);
 uint16_t enc_write_resp(uint8_t *pdu);
 uint16_t dec_write_resp(const uint8_t *pdu, size_t len);
 uint16_t enc_read_req(uint16_t handle, uint8_t *pdu, size_t len);
 uint16_t enc_read_blob_req(uint16_t handle, uint16_t offset, uint8_t *pdu,
-								size_t len);
+        size_t len);
 uint16_t dec_read_req(const uint8_t *pdu, size_t len, uint16_t *handle);
 uint16_t dec_read_blob_req(const uint8_t *pdu, size_t len, uint16_t *handle,
-							uint16_t *offset);
+        uint16_t *offset);
 uint16_t enc_read_resp(uint8_t *value, size_t vlen, uint8_t *pdu, size_t len);
 uint16_t enc_read_blob_resp(uint8_t *value, size_t vlen, uint16_t offset,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 ssize_t dec_read_resp(const uint8_t *pdu, size_t len, uint8_t *value,
-								size_t vlen);
+        size_t vlen);
 uint16_t enc_error_resp(uint8_t opcode, uint16_t handle, uint8_t status,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 uint16_t enc_find_info_req(uint16_t start, uint16_t end, uint8_t *pdu,
-								size_t len);
+        size_t len);
 uint16_t dec_find_info_req(const uint8_t *pdu, size_t len, uint16_t *start,
-								uint16_t *end);
+        uint16_t *end);
 uint16_t enc_find_info_resp(uint8_t format, struct att_data_list *list,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 struct att_data_list *dec_find_info_resp(const uint8_t *pdu, size_t len,
-							uint8_t *format);
+        uint8_t *format);
 uint16_t enc_notification(uint16_t handle, uint8_t *value, size_t vlen,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 uint16_t enc_indication(uint16_t handle, uint8_t *value, size_t vlen,
-						uint8_t *pdu, size_t len);
+        uint8_t *pdu, size_t len);
 uint16_t dec_indication(const uint8_t *pdu, size_t len, uint16_t *handle,
-						uint8_t *value, size_t vlen);
+        uint8_t *value, size_t vlen);
 uint16_t enc_confirmation(uint8_t *pdu, size_t len);
 
 uint16_t enc_mtu_req(uint16_t mtu, uint8_t *pdu, size_t len);
@@ -444,16 +425,13 @@ uint16_t enc_mtu_resp(uint16_t mtu, uint8_t *pdu, size_t len);
 uint16_t dec_mtu_resp(const uint8_t *pdu, size_t len, uint16_t *mtu);
 
 uint16_t enc_prep_write_req(uint16_t handle, uint16_t offset,
-					const uint8_t *value, size_t vlen,
-					uint8_t *pdu, size_t len);
+        const uint8_t *value, size_t vlen, uint8_t *pdu, size_t len);
 uint16_t dec_prep_write_req(const uint8_t *pdu, size_t len, uint16_t *handle,
-				uint16_t *offset, uint8_t *value, size_t *vlen);
+        uint16_t *offset, uint8_t *value, size_t *vlen);
 uint16_t enc_prep_write_resp(uint16_t handle, uint16_t offset,
-					const uint8_t *value, size_t vlen,
-					uint8_t *pdu, size_t len);
+        const uint8_t *value, size_t vlen, uint8_t *pdu, size_t len);
 uint16_t dec_prep_write_resp(const uint8_t *pdu, size_t len, uint16_t *handle,
-						uint16_t *offset, uint8_t *value,
-						size_t *vlen);
+        uint16_t *offset, uint8_t *value, size_t *vlen);
 uint16_t enc_exec_write_req(uint8_t flags, uint8_t *pdu, size_t len);
 uint16_t dec_exec_write_req(const uint8_t *pdu, size_t len, uint8_t *flags);
 uint16_t enc_exec_write_resp(uint8_t *pdu);
