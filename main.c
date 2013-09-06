@@ -475,7 +475,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         g_total_logs++; // Total number of log points downloaded so far
         switch (log_type) {
         uint16_t val16;
-        uint8_t field_count, nbits, prev_rate;
+        uint8_t field_count, nbits, prev_rate, reset_detected;
         uint8_t * pdu;
 
     case WED_LOG_TIME:
@@ -485,8 +485,13 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
         prev_rate = g_logTime.fast_rate;
         g_logTime.fast_rate = buf[payload + 5];
+        reset_detected = g_logTime.fast_rate & 0x80;
+        g_logTime.fast_rate &= 0x0F;
 
-        if (g_logTime.fast_rate != prev_rate) {
+        if (reset_detected)
+            printf("\nResume downloading logs after reset happened.\n");
+
+        if (g_logTime.fast_rate != prev_rate || reset_detected) {
             // Close log files, to have them split on next packet
             for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
                 if (g_logFile[i] != NULL) {
@@ -783,10 +788,17 @@ int process_status(uint8_t * buf, ssize_t buflen) {
     g_status.cur_time = att_get_u32(&pdu[6]);
     memcpy(&g_status.cur_tag, &pdu[10], WED_TAG_SIZE);
 
-    printf(
-            "\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %2.1f%%\t Time: %3.3f s\t",
+    const int BATT_MAX = 144;
+    const int BATT_MIN = 122;
+    float fBatteryLevel = (g_status.battery_level - BATT_MIN) * 100.0 / (BATT_MAX - BATT_MIN);
+    if (fBatteryLevel > 100)
+        fBatteryLevel = 100;
+    if (fBatteryLevel < 0)
+        fBatteryLevel = 0;
+
+    printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %2.1f%%\t Time: %3.3f s\t",
             g_szBuild, g_szVersion, g_status.num_log_entries,
-            g_status.battery_level * 100.0 / 255.0,
+            fBatteryLevel,
             g_status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC);
 
     if (g_status.status & STATUS_UPDATE)
