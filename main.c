@@ -1102,11 +1102,19 @@ static void do_command_line(int argc, char * const argv[]) {
     while (1) {
         int c;
         int option_index = 0;
-        static struct option long_options[] = { { "verbose", 0, 0, 'V' }, {
-                "lescan", 0, 0, 'l' }, { "i", 1, 0, 'i' }, { "adapter", 1, 0,
-                        'i' }, { "b", 1, 0, 'b' }, { "device", 1, 0, 'b' }, { "command",
-                                1, 0, 'x' }, { "c", 1, 0, 'x' }, { "config", 1, 0, 'f' }, {
-                                        "fwupdate", 1, 0, 'u' }, { "help", 0, 0, '?' }, { 0, 0, 0, 0 } };
+        static struct option long_options[] = {
+              { "verbose", 0, 0, 'V' },
+              { "lescan", 0, 0, 'l'  },
+              { "i", 1, 0, 'i' },
+              { "adapter", 1, 0, 'i' },
+              { "b", 1, 0, 'b' },
+              { "device", 1, 0, 'b' },
+              { "c", 1, 0, 'x' },
+              { "command", 1, 0, 'x' },
+              { "input", 1, 0, 'f' },
+              { "fwupdate", 1, 0, 'u' },
+              { "help", 0, 0, '?' },
+              { 0, 0, 0, 0 } };
 
         c = getopt_long(argc, argv, "Vl?", long_options, &option_index);
         if (c == -1)
