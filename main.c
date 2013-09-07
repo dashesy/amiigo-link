@@ -123,7 +123,8 @@ WEDLogLSConfig g_logLSConfig;
 
 int g_sock; // Link socket
 size_t g_buflen; // Uplink MTU
-uint32_t g_total_logs = 0; // Total number of logs
+uint32_t g_read_logs = 0;  // Logs downloaded so far
+uint32_t g_total_logs = 0; // Total number of logs tp be downloaded
 
 #define MAX_LOG_ENTRIES (WED_LOG_ACCEL_CMP + 1)
 FILE * g_logFile[MAX_LOG_ENTRIES] = { NULL };
@@ -232,6 +233,7 @@ int exec_download() {
     }
 
     g_state = STATE_DOWNLOAD; // Download in progress
+    g_total_logs = g_status.num_log_entries; // How many logs to download
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
     if (handle == 0)
@@ -472,7 +474,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
     WED_LOG_TYPE log_type = buf[payload] & 0x0F;
     while (payload < buflen) {
-        g_total_logs++; // Total number of log points downloaded so far
+        g_read_logs++; // Total number of log points downloaded so far
 
         switch (log_type) {
         uint16_t val16;
@@ -593,7 +595,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             logAccelCmp.type = log_type;
             logAccelCmp.count_bits = buf[payload + 1];
             field_count = (logAccelCmp.count_bits & 0xF) + 1;
-            g_total_logs += field_count;
+            g_read_logs += field_count;
             nbits = 0;
             switch ((logAccelCmp.count_bits & 0x70) >> 4) {
             case WED_LOG_ACCEL_CMP_3_BIT:
@@ -673,11 +675,11 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             log_type = buf[payload];
     } // end while (payload < buflen
 
-    printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_total_logs,
+    printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_read_logs,
             g_status.num_log_entries,
-            (100.0 * g_total_logs) / g_status.num_log_entries);
+            (100.0 * g_read_logs) / g_total_logs);
     fflush(stdout);
-    if (g_total_logs >= g_status.num_log_entries)
+    if (g_read_logs >= g_total_logs)
         g_state = STATE_COUNT; // Done with command
     return 0;
 }
