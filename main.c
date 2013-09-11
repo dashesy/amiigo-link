@@ -578,6 +578,16 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 fprintf(stderr, "Invalid LS_DATA ignored\n");
                 break;
             }
+            if (field_count == 2)
+            {
+                fprintf(g_logFile[log_type],
+                        "on,off\n");
+            }
+            else if (field_count == 3)
+            {
+                fprintf(g_logFile[log_type],
+                        "on_ir,on_red,off\n");
+            }
             logLSData.val[0] = val16 & 0x3FFF;
             for (i = 1; i < field_count; ++i)
                 logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
