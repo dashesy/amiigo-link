@@ -504,7 +504,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
         switch (log_type) {
         uint16_t val16;
-        uint8_t field_count, nbits, prev_rate, reset_detected;
+        uint8_t field_count, nbits, reset_detected;
         uint8_t * pdu;
 
         case WED_LOG_TIME:
@@ -512,15 +512,15 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
             g_logTime.type = log_type;
             g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
-            prev_rate = g_logTime.flags;
             g_logTime.flags = buf[payload + 5];
             reset_detected = g_logTime.flags & 0x80;
             g_logTime.flags &= 0x0F;
 
             if (reset_detected)
-                printf("\nResume downloading logs after reset happened.\n");
+                printf(" reset detected.\n");
 
-            if (g_logTime.flags != prev_rate || reset_detected) {
+            if (reset_detected) {
+                printf(" Resume downloading.\n");
                 // Close log files, to have them split on next packet
                 for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
                     if (g_logFile[i] != NULL) {
@@ -614,7 +614,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
             g_logTag.type = log_type;
             g_logTag.tag = att_get_u32(&buf[payload + 1]);
-            printf("\nSplit on Tag %u\n", g_logTag.tag);
+            printf(" split on Tag %u\n", g_logTag.tag);
             // Close log files, to have them split on next packet
             for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
                 if (g_logFile[i] != NULL) {
