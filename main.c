@@ -567,27 +567,27 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         case WED_LOG_LS_DATA:
             packet_len = WEDLogLSDataSize(&buf[payload]);
 
+            val16 = att_get_u16(&buf[payload + 1]);
+            field_count = ((val16 & 0xC000) >> 14) + 1;
             if (g_logFile[log_type] == NULL) {
                 g_logFile[log_type] = log_file_open("LS_Data");
+                if (field_count > 3) {
+                    fprintf(stderr, "Invalid LS_DATA ignored\n");
+                    break;
+                }
+                if (field_count == 2)
+                {
+                    fprintf(g_logFile[log_type],
+                            "on,off\n");
+                }
+                else if (field_count == 3)
+                {
+                    fprintf(g_logFile[log_type],
+                            "on_ir,on_red,off\n");
+                }
             }
 
             logLSData.type = log_type;
-            val16 = att_get_u16(&buf[payload + 1]);
-            field_count = ((val16 & 0xC000) >> 14) + 1;
-            if (field_count > 3) {
-                fprintf(stderr, "Invalid LS_DATA ignored\n");
-                break;
-            }
-            if (field_count == 2)
-            {
-                fprintf(g_logFile[log_type],
-                        "on,off\n");
-            }
-            else if (field_count == 3)
-            {
-                fprintf(g_logFile[log_type],
-                        "on_ir,on_red,off\n");
-            }
             logLSData.val[0] = val16 & 0x3FFF;
             for (i = 1; i < field_count; ++i)
                 logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
