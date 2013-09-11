@@ -514,7 +514,6 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
             g_logTime.flags = buf[payload + 5];
             reset_detected = g_logTime.flags & 0x80;
-            g_logTime.flags &= 0x0F;
 
             if (reset_detected)
                 printf(" reset detected.\n");
@@ -1066,10 +1065,10 @@ int set_input_file(const char * szName) {
             g_config_ls.off_time = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_fast_interval") == 0) {
             // Seconds between samples in fast mode
-            g_config_ls.fast_interval = (uint8_t) val;
+            g_config_ls.fast_interval = (uint16_t) val;
         } else if (strcasecmp(szParam, "ls_slow_interval") == 0) {
             // Seconds between samples in slow mode
-            g_config_ls.slow_interval = (uint8_t) val;
+            g_config_ls.slow_interval = (uint16_t) val;
         } else if (strcasecmp(szParam, "ls_duration") == 0) {
             g_config_ls.duration = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_gain") == 0) {
