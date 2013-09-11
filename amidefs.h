@@ -207,6 +207,7 @@ typedef enum {
 	WED_MAINT_CLEAR_LOG,    // Clear data log
 	WED_MAINT_RESET,        // Reset CPU
 	WED_MAINT_TAG,          // Insert WEDLogTag entry into log
+	WED_MAINT_BLINK_LED,    // blink USER
 } PACKED WED_MAINT_CMD;
 
 typedef struct {
@@ -215,11 +216,18 @@ typedef struct {
 } PACKED WEDMaintTag;
 
 typedef struct {
+	uint8 led;       // green = 1, red = 2.
+	uint8 speed;     // 1 - 3 in sec
+	uint8 duration;  // how long to stay in this state in sec. 0 will cancel an existing duration.
+} PACKED WEDMaintLED;
+
+typedef struct {
 	// WED_MAINT_CMD value
 	uint8 command;
 
 	union {
 		WEDMaintTag tag;
+		WEDMaintLED led;
 	};
 } PACKED WEDConfigMaint;
 
@@ -485,8 +493,8 @@ typedef struct {
 #if 0
 update() {
 	WEDFirmwareCommand init = { WED_FIRMWARE_INIT	};
-
 	read(firmware_file, init.header, WED_FW_HEADER_SIZE);
+
 	ble_write(WED_UUID_FIRMWARE, init);
 
 	seek_to_beginning(firmware_file);

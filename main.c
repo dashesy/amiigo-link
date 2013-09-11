@@ -102,11 +102,13 @@ enum AMIIGO_CMD {
     AMIIGO_CMD_DOWNLOAD,      // Download all the logs
     AMIIGO_CMD_CONFIGLS,      // Configure light sensors
     AMIIGO_CMD_CONFIGACCEL,   // Configure acceleration sensors
+    AMIIGO_CMD_BLINK,         // Configure a single blink
 } g_cmd = AMIIGO_CMD_NONE;
 
 WEDVersion g_ver; // Firmware version
 WEDConfigLS g_config_ls; // Light configuration
 WEDConfigAccel g_config_accel; // Acceleration sensors configuration
+WEDMaintLED g_maint_led; // Blink command
 
 WEDStatus g_status; // Device status
 
@@ -284,6 +286,30 @@ int exec_configaccel() {
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_ACCEL;
     config.accel = g_config_accel;
+
+    int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
+    if (ret)
+        return -1;
+
+    return 0;
+}
+
+// Start LED blinking
+int exec_blink() {
+    g_state = STATE_COUNT; // Done with command
+
+    uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    WEDConfigMaint config_maint;
+    memset(&config_maint, 0, sizeof(config_maint));
+    config_maint.command = WED_MAINT_BLINK_LED;
+    config_maint.led = g_maint_led;
+    WEDConfig config;
+    memset(&config, 0, sizeof(config));
+    config.config_type = WED_CFG_MAINT;
+    config.maint = config_maint;
 
     int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
     if (ret)
@@ -694,6 +720,9 @@ int process_command() {
     case AMIIGO_CMD_CONFIGACCEL:
         return exec_configaccel();
         break;
+    case AMIIGO_CMD_BLINK:
+        return exec_blink();
+        break;
     case AMIIGO_CMD_RESET_CPU:
     case AMIIGO_CMD_RESET_LOGS:
     case AMIIGO_CMD_RESET_CONFIGS:
@@ -947,6 +976,8 @@ int set_command(const char * szName) {
         g_cmd = AMIIGO_CMD_CONFIGLS;
     } else if (strcasecmp(szName, "configaccel") == 0) {
         g_cmd = AMIIGO_CMD_CONFIGACCEL;
+    } else if (strcasecmp(szName, "blink") == 0) {
+        g_cmd = AMIIGO_CMD_BLINK;
     } else if (strcasecmp(szName, "status") == 0) {
         g_cmd = AMIIGO_CMD_NONE;
     } else {
@@ -1044,6 +1075,16 @@ int set_input_file(const char * szName) {
         } else if (strcasecmp(szParam, "ls_flags") == 0) {
             g_config_ls.flags = (uint8_t) val;
         }
+        // --------------- Blink ----------------------
+        else if (strcasecmp(szParam, "blink_duration") == 0) {
+            g_maint_led.duration = (uint8_t) val;
+        }
+        else if (strcasecmp(szParam, "blink_led") == 0) {
+            g_maint_led.led = (uint8_t) val;
+        }
+        else if (strcasecmp(szParam, "blink_speed") == 0) {
+            g_maint_led.speed = (uint8_t) val;
+        }
         // ---------------- Accel ---------------------
         else if (strcasecmp(szParam, "accel_slow_rate") == 0) {
             g_config_accel.slow_rate = WEDConfigRateParam(
@@ -1085,6 +1126,7 @@ void show_usage_screen(void) {
             "       download: download the logs\n"
             "       configls: configure light sensor\n"
             "       configaccel: configure acceleration sensors\n"
+            "       blink: configure blink LED\n"
             "       resetlogs: reset buffered logs\n"
             "       resetcpu: restart the board\n"
             "       resetconfigs: set all configs to default\n"
@@ -1212,11 +1254,17 @@ int main(int argc, char **argv) {
 
     memset(&g_config_ls, 0, sizeof(g_config_ls));
     memset(&g_config_accel, 0, sizeof(g_config_accel));
+    memset(&g_maint_led, 0, sizeof(g_maint_led));
     memset(&g_status, 0, sizeof(g_status));
     memset(&g_logTag, 0, sizeof(g_logTag));
     memset(&g_logTime, 0, sizeof(g_logTime));
     memset(&g_logAccel, 0, sizeof(g_logAccel));
     memset(&g_logLSConfig, 0, sizeof(g_logLSConfig));
+
+    // Some defulats
+    g_maint_led.duration = 10;
+    g_maint_led.led = 2;
+    g_maint_led.speed = 1;
 
     // Set parameters based on command line
     do_command_line(argc, argv);
