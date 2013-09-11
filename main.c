@@ -341,7 +341,7 @@ FILE * log_file_open(const char * szBase) {
     strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now));
     // Use other metadata to distinguish each log
     sprintf(szFullName, "%s_%u_%u_%u_%s.log", szBase, g_logTag.tag,
-            g_logTime.timestamp, g_logTime.fast_rate, szDateTime);
+            g_logTime.timestamp, g_logTime.flags, szDateTime);
 
     FILE * fp = fopen(szFullName, "w");
     return fp;
@@ -486,15 +486,15 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
             g_logTime.type = log_type;
             g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
-            prev_rate = g_logTime.fast_rate;
-            g_logTime.fast_rate = buf[payload + 5];
-            reset_detected = g_logTime.fast_rate & 0x80;
-            g_logTime.fast_rate &= 0x0F;
+            prev_rate = g_logTime.flags;
+            g_logTime.flags = buf[payload + 5];
+            reset_detected = g_logTime.flags & 0x80;
+            g_logTime.flags &= 0x0F;
 
             if (reset_detected)
                 printf("\nResume downloading logs after reset happened.\n");
 
-            if (g_logTime.fast_rate != prev_rate || reset_detected) {
+            if (g_logTime.flags != prev_rate || reset_detected) {
                 // Close log files, to have them split on next packet
                 for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
                     if (g_logFile[i] != NULL) {
@@ -525,20 +525,18 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             if (g_logFile[log_type] == NULL) {
                 g_logFile[log_type] = log_file_open("LS_Config");
                 fprintf(g_logFile[log_type],
-                        "dac_red,dac_ir,level_red,level_ir,gain,log_size\n");
+                        "dac_on,dac_off,level_led,gain,log_size\n");
             }
 
             g_logLSConfig.type = log_type;
-            g_logLSConfig.dac_red = buf[payload + 1];
-            g_logLSConfig.dac_ir = buf[payload + 2];
-            g_logLSConfig.level_red = buf[payload + 3];
-            g_logLSConfig.level_ir = buf[payload + 4];
-            g_logLSConfig.gain = buf[payload + 5];
-            g_logLSConfig.log_size = buf[payload + 6];
-            fprintf(g_logFile[log_type], "%u,%u,%u,%u,%u,%u\n",
-                    g_logLSConfig.dac_red, g_logLSConfig.dac_ir,
-                    g_logLSConfig.level_red, g_logLSConfig.level_ir,
-                    g_logLSConfig.gain, g_logLSConfig.log_size);
+            g_logLSConfig.dac_on = buf[payload + 1];
+            g_logLSConfig.dac_off = buf[payload + 2];
+            g_logLSConfig.level_led = buf[payload + 3];
+            g_logLSConfig.gain = buf[payload + 4];
+            g_logLSConfig.log_size = buf[payload + 5];
+            fprintf(g_logFile[log_type], "%u,%u,%u,%u,%u\n",
+                    g_logLSConfig.dac_on, g_logLSConfig.dac_off,
+                    g_logLSConfig.level_led, g_logLSConfig.gain, g_logLSConfig.log_size);
             break;
         case WED_LOG_LS_DATA:
             packet_len = WEDLogLSDataSize(&buf[payload]);
