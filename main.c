@@ -694,7 +694,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         default:
             packet_len = (buflen - payload);
 
-            printf("Notification handle = 0x%04x value: ", handle);
+            printf("Notification handle: 0x%04x total: %u value: ", handle, (uint32_t)buflen);
             for (i = payload; i < buflen; ++i)
                 printf("%02x ", buf[i]);
             printf("\n");
