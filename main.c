@@ -709,10 +709,9 @@ int process_download(uint8_t * buf, ssize_t buflen) {
     } // end while (payload < buflen
 
     printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_read_logs,
-            g_status.num_log_entries,
-            (100.0 * g_read_logs) / g_total_logs);
+            g_total_logs, (100.0 * g_read_logs) / g_total_logs);
     fflush(stdout);
-    if (g_read_logs >= g_total_logs)
+    if (g_read_logs >= g_total_logs || g_status.num_log_entries == 0)
         g_state = STATE_COUNT; // Done with command
     return 0;
 }
