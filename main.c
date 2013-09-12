@@ -124,7 +124,7 @@ WEDLogAccel g_logAccel;
 WEDLogLSConfig g_logLSConfig;
 
 int g_sock; // Link socket
-size_t g_buflen; // Uplink MTU
+size_t g_buflen; // Established MTU
 uint32_t g_read_logs = 0;  // Logs downloaded so far
 uint32_t g_total_logs = 0; // Total number of logs tp be downloaded
 
@@ -493,7 +493,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
     if (expected_seq_number == 16)
         expected_seq_number = 0;
     if (expected_seq_number != seq_number)
-        printf(" err sequence!\n");
+        printf(" err sequence: expected %d seen %d!\n", expected_seq_number, seq_number);
     prev_seq_number = seq_number;
 
     // TODO: use seq_number for reordering packets
@@ -1399,7 +1399,7 @@ int main(int argc, char **argv) {
                 }
                 if (len > 0)
                     buflen = buflen + len;
-            } while (len > 0);
+            } while (len > 0 && buflen < g_buflen);
             // If error in receive, quit
             if (len < 0)
                 break;
