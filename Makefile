@@ -52,6 +52,9 @@ VPATH := $(sort  $(dir $(COMMON_SRC)))
 
 all: prepare ./$(OUTPUTBIN)
 
+install:
+	@cp ./$(OUTPUTBIN) /usr/bin/$(OUTPUTBIN)
+
 .PHONY: prepare
 prepare:
 	@mkdir -p .obj

@@ -826,18 +826,9 @@ int process_status(uint8_t * buf, ssize_t buflen) {
     g_status.cur_time = att_get_u32(&pdu[6]);
     memcpy(&g_status.cur_tag, &pdu[10], WED_TAG_SIZE);
 
-    const int BATT_MAX = 144;
-    const int BATT_MIN = 122;
-    float fBatteryLevel = (g_status.battery_level - BATT_MIN) * 100.0
-            / (BATT_MAX - BATT_MIN);
-    if (fBatteryLevel > 100)
-        fBatteryLevel = 100;
-    if (fBatteryLevel < 0)
-        fBatteryLevel = 0;
-
     printf(
-            "\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %2.1f%%\t Time: %3.3f s\t",
-            g_szBuild, g_szVersion, g_status.num_log_entries, fBatteryLevel,
+            "\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\t",
+            g_szBuild, g_szVersion, g_status.num_log_entries, g_status.battery_level,
             g_status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC);
 
     if (g_status.status & STATUS_UPDATE)
