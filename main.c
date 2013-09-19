@@ -825,11 +825,13 @@ int process_status(uint8_t * buf, ssize_t buflen) {
     g_status.status = pdu[5];
     g_status.cur_time = att_get_u32(&pdu[6]);
     memcpy(&g_status.cur_tag, &pdu[10], WED_TAG_SIZE);
+    if (buflen >= 10 + WED_TAG_SIZE)
+        g_status.reboot_count = pdu[10 + WED_TAG_SIZE];
 
     printf(
-            "\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\t",
+            "\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\tReboots: %u\t",
             g_szBuild, g_szVersion, g_status.num_log_entries, g_status.battery_level,
-            g_status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC);
+            g_status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, g_status.reboot_count);
 
     if (g_status.status & STATUS_UPDATE)
         printf(" (Updating) ");
@@ -840,7 +842,7 @@ int process_status(uint8_t * buf, ssize_t buflen) {
     if (g_status.status & STATUS_CHARGING)
         printf(" (Charging) ");
     if (g_status.status & STATUS_LS_INPROGRESS)
-        printf(" (LS Calibrating) ");
+        printf(" (Light Capture) ");
     printf("\n");
 
     return 0;
@@ -1073,6 +1075,8 @@ int set_input_file(const char * szName) {
             g_config_ls.debug = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_flags") == 0) {
             g_config_ls.flags = (uint8_t) val;
+        } else if (strcasecmp(szParam, "ls_movement") == 0) {
+            g_config_ls.movement = (uint8_t) val;
         }
         // --------------- Blink ----------------------
         else if (strcasecmp(szParam, "blink_duration") == 0) {

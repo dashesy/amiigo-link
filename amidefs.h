@@ -81,8 +81,8 @@ typedef struct {
 	// Total # of stored entries
 	uint32 num_log_entries;
 
-	// A/D reading
-	uint8 battery_level;
+	// 0 to 100
+	uint8 battery_level; 
 
 	// BIT FIELD
 	// Bit 0: Is a firmware update in progress
@@ -94,8 +94,11 @@ typedef struct {
 	// Current time in WED_TIME_TICKS_PER_SEC
 	uint32 cur_time;
 
-// last maint tag written to log
+	// last maint tag written to log
 	uint8 cur_tag[WED_TAG_SIZE];
+
+	// how many times has the system rebooted since the last power cycle, or maintance reset.
+	uint8 reboot_count;
 } PACKED WEDStatus;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -172,7 +175,7 @@ typedef struct {
 	uint16 slow_interval;
 	uint8 duration;
 
-	uint8 gain;      // 0-127, pot setting for red/IR LED samples
+	uint8 gain;      // 0-127, MAX gain the system will try and calatrage to
 
 	// WARRNING: DO NOT set the off time to 0 and then request the off reading, it will lockup.
 	uint8 leds;      // bit 0 = sample red LED, bit 1 = sample IR LED, bit 2 = sample w/LEDs off
@@ -184,7 +187,7 @@ typedef struct {
 	uint8 debug;     // Console output debug level, set to 0 for normal operation
 	uint8 unused1;   // unused
 	uint8 unused2;   // Which refernce voltage for the DAC
-	uint8 unused3;   // Can be 8, 10, 12, or 14.  default = 14
+	uint8 movement;  // average movement level at wich starting a reading is allowed. 0=don't check
 	uint8 flags;     // Contol Bits
 } PACKED WEDConfigLS;
 
