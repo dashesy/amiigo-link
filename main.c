@@ -817,19 +817,17 @@ int discover_device() {
 
 // Set device status
 int process_status(uint8_t * buf, ssize_t buflen) {
-    if (buflen < sizeof(WEDStatus) + 1)
-        return -1;
     uint8_t * pdu = &buf[1];
     g_status.num_log_entries = att_get_u32(&pdu[0]);
     g_status.battery_level = pdu[4];
     g_status.status = pdu[5];
     g_status.cur_time = att_get_u32(&pdu[6]);
     memcpy(&g_status.cur_tag, &pdu[10], WED_TAG_SIZE);
-    if (buflen >= 10 + WED_TAG_SIZE)
+    if (buflen >= sizeof(WEDStatus) + 1)
         g_status.reboot_count = pdu[10 + WED_TAG_SIZE];
 
-    printf(
-            "\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\tReboots: %u\t",
+
+    printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\tReboots: %u\t",
             g_szBuild, g_szVersion, g_status.num_log_entries, g_status.battery_level,
             g_status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, g_status.reboot_count);
 
