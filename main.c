@@ -1355,7 +1355,6 @@ int main(int argc, char **argv) {
     FD_SET(g_sock, &read_fds);
 
     start_time = time(NULL);
-    uint8_t buf[1024] = {0};
 
     for (;;) {
         // No need to keep-alive during firmware update
@@ -1377,6 +1376,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "main select() error\n");
             break;
         }
+        uint8_t buf[1024] = {0};
         ssize_t len = 0, buflen = 0;
         if (ready > 0 && FD_ISSET(g_sock, &read_fds)) {
             do {
