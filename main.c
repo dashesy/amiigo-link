@@ -1355,7 +1355,7 @@ int main(int argc, char **argv) {
     FD_SET(g_sock, &read_fds);
 
     start_time = time(NULL);
-    uint8_t buf[1024];
+    uint8_t buf[1024] = {0};
 
     for (;;) {
         // No need to keep-alive during firmware update
