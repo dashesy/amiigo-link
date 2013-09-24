@@ -2,6 +2,8 @@ dist/
 
 *.obj/
 *.dir/
+obj/
+libs/
 
 *.pyc
 *.npy
