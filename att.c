@@ -32,7 +32,11 @@
 #include <stdbool.h>
 #include <string.h>
 
+#ifdef __ANDROID__
+#include "jni/bluetooth.h"
+#else
 #include <bluetooth/bluetooth.h>
+#endif
 
 #include "att.h"
 

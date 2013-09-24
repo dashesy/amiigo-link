@@ -11,9 +11,15 @@
 #include <unistd.h>
 #include <signal.h>
 
+#ifdef __ANDROID__
+#include "jni/bluetooth.h"
+#include "jni/hci.h"
+#include "jni/hci_lib.h"
+#else
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
+#endif
 
 #include "hcitool.h"
 

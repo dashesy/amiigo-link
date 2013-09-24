@@ -32,7 +32,6 @@
 #define BT_IO_H
 
 #include <stdbool.h>
-#include <bluetooth/bluetooth.h>
 
 /* Attribute Protocol Opcodes */
 #define ATT_OP_ERROR			0x01
