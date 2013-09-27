@@ -408,8 +408,6 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
 
     uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
 
-    //printf("size %u fw status %u err %u\n", buflen, fwstatus.status, fwstatus.error_code);
-
     if (g_state == STATE_FWSTATUS)
     {
         if (fwstatus.status != WED_FWSTATUS_IDLE)
@@ -1316,7 +1314,7 @@ int main(int argc, char **argv) {
 
     // Some defulats
     g_maint_led.duration = 5;
-    g_maint_led.led = 4;
+    g_maint_led.led = 6;
     g_maint_led.speed = 1;
 
     // Set parameters based on command line
