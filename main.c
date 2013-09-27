@@ -1315,8 +1315,8 @@ int main(int argc, char **argv) {
     memset(&g_logLSConfig, 0, sizeof(g_logLSConfig));
 
     // Some defulats
-    g_maint_led.duration = 10;
-    g_maint_led.led = 2;
+    g_maint_led.duration = 5;
+    g_maint_led.led = 4;
     g_maint_led.speed = 1;
 
     // Set parameters based on command line
