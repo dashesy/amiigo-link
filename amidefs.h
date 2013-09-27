@@ -164,6 +164,7 @@ enum {
 
 #define CONFIGLS_FLAGS_START_NOW 0x80
 #define CONFIGLS_FLAGS_ABORT     0x40
+#define CONFIGLS_MODULATE_TIMING 0x20
 
 typedef struct {
 	uint8 on_time;   // LED on time before ADC reading, in msec
@@ -219,7 +220,7 @@ typedef struct {
 } PACKED WEDMaintTag;
 
 typedef struct {
-	uint8 led;       // green = 1, red = 2.
+	uint8 led;       // green = 1, red = 2, 4 = PulseOx RED LED
 	uint8 speed;     // 1 - 3 in sec
 	uint8 duration;  // how long to stay in this state in sec. 0 will cancel an existing duration.
 } PACKED WEDMaintLED;
@@ -240,7 +241,11 @@ enum {
 
 	// Enables WED_LOG_xxx_CMP compressed formats. Log must be cleared
 	// when setting this from enabled to disabled.
-	WED_CONFIG_LOG_CMP_EN = (1 << 1),
+	WED_CONFIG_LOG_CMP_EN   = (1 << 1),
+
+	// Log Loopback, bypasses the flash storage.
+	// used to save battery life if you stay connected to the phone
+	WED_CONFIG_LOG_LOOPBACK = (1 << 2),
 };
 
 typedef struct {
