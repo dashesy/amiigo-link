@@ -82,15 +82,17 @@ enum {
 struct gatt_char g_char[AMIIGO_UUID_COUNT];
 
 // Client configuration (for notification and indication)
-const char * g_szUUID[] = { "00002902-0000-1000-8000-00805f9b34fb",
-        "cca31000-78c6-4785-9e45-0887d451317c",
-        "cca30001-78c6-4785-9e45-0887d451317c",
-        "cca30002-78c6-4785-9e45-0887d451317c",
-        "cca30003-78c6-4785-9e45-0887d451317c",
-        "cca30004-78c6-4785-9e45-0887d451317c",
-        "cca30005-78c6-4785-9e45-0887d451317c",
-        "cca30006-78c6-4785-9e45-0887d451317c",
-        "cca30007-78c6-4785-9e45-0887d451317c", };
+const char * g_szUUID[] = {
+    "00002902-0000-1000-8000-00805f9b34fb",
+    "cca31000-78c6-4785-9e45-0887d451317c",
+    "cca30001-78c6-4785-9e45-0887d451317c",
+    "cca30002-78c6-4785-9e45-0887d451317c",
+    "cca30003-78c6-4785-9e45-0887d451317c",
+    "cca30004-78c6-4785-9e45-0887d451317c",
+    "cca30005-78c6-4785-9e45-0887d451317c",
+    "cca30006-78c6-4785-9e45-0887d451317c",
+    "cca30007-78c6-4785-9e45-0887d451317c",
+};
 
 // Firmware build and version information
 char g_szBuild[512] = "Unknown";
@@ -148,6 +150,7 @@ enum DISCOVERY_STATE {
     STATE_VERSION,
     STATE_STATUS,
     STATE_DOWNLOAD,
+    STATE_FWSTATUS,
     STATE_FWSTATUS_WAIT,
 
     STATE_COUNT, // This must be the last
@@ -208,29 +211,44 @@ int exec_write(uint16_t handle, const uint8_t * value, size_t vlen) {
     return 0;
 }
 
+// Write to a characteristic with response
+// Inputs:
+//   handle - characteristics handle to write to
+//   value  - value to write
+//   vlen   - size of value in bytes
+int exec_write_req(uint16_t handle, const uint8_t * value, size_t vlen) {
+    if (handle == 0)
+        return -1;
+
+    uint8_t * buf = malloc(g_buflen);
+    memset(buf, 0, g_buflen);
+    uint16_t plen = enc_write_req(handle, value, vlen, buf, g_buflen);
+
+    ssize_t len = send(g_sock, buf, plen, 0);
+
+    free(buf);
+    if (len < 0 || len != plen) {
+        return -1;
+    }
+
+    return 0;
+}
+
 // Start firmware update procedure
 int exec_fwupdate() {
-    g_state = STATE_FWSTATUS_WAIT;
+    int ret;
+    g_state = STATE_FWSTATUS;
 
     uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
     if (handle == 0)
         return -1; // Not ready yet
 
-    printf("\n\n");
-
-    WEDFirmwareCommand fwcmd;
-    memset(&fwcmd, 0, sizeof(fwcmd));
-    fwcmd.pkt_type = WED_FIRMWARE_INIT;
-    fread(fwcmd.header, WED_FW_HEADER_SIZE, 1, g_fwImageFile);
-    fseek(g_fwImageFile, 0, SEEK_SET);
-    g_fwImageWrittenSize = 0;
-
-    int ret = exec_write(handle, (uint8_t *) &fwcmd, sizeof(fwcmd));
-    if (ret)
-        return -1;
+    printf("\nPreparing for update ...\n");
 
     // Now read for status
-    return exec_read(handle);
+    ret = exec_read(handle);
+
+    return ret;
 }
 
 // Start downloading the log packets
@@ -390,8 +408,34 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
 
     uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
 
+    //printf("size %u fw status %u err %u\n", buflen, fwstatus.status, fwstatus.error_code);
+
+    if (g_state == STATE_FWSTATUS)
+    {
+        if (fwstatus.status != WED_FWSTATUS_IDLE)
+        {
+            printf("Unfinished update detected.\nTry again\n");
+            return -1;
+        }
+    }
+
     if (fwstatus.status == WED_FWSTATUS_WAIT
             || fwstatus.status == WED_FWSTATUS_IDLE) {
+        if (g_state == STATE_FWSTATUS)
+        {
+            WEDFirmwareCommand fwcmd;
+            memset(&fwcmd, 0, sizeof(fwcmd));
+            fwcmd.pkt_type = WED_FIRMWARE_INIT;
+            fread(fwcmd.header, WED_FW_HEADER_SIZE, 1, g_fwImageFile);
+            fseek(g_fwImageFile, 0, SEEK_SET);
+            g_fwImageWrittenSize = 0;
+
+            ret = exec_write(handle, (uint8_t *) &fwcmd, sizeof(fwcmd));
+            if (ret)
+                return -1;
+            // We have already written the header
+            g_state = STATE_FWSTATUS_WAIT;
+        }
         ret = exec_read(handle); // Continue polling
     } else if (fwstatus.status == WED_FWSTATUS_ERROR) {
         switch (fwstatus.error_code) {
@@ -949,6 +993,7 @@ int process_data(uint8_t * buf, ssize_t buflen) {
             // This must be keep-alive
             process_status(buf, buflen);
             break;
+        case STATE_FWSTATUS:
         case STATE_FWSTATUS_WAIT:
             // Act upon new firmware update status
             ret = process_fwstatus(buf, buflen);
