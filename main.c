@@ -412,7 +412,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
     {
         if (fwstatus.status != WED_FWSTATUS_IDLE)
         {
-            printf("Unfinished update detected.\nTry again\n");
+            printf("Unfinished previous update detected.\nReset CPU and try again\n");
             return -1;
         }
     }
