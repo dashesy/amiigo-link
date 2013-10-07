@@ -156,6 +156,9 @@ enum DISCOVERY_STATE {
     STATE_COUNT, // This must be the last
 } g_state = STATE_NONE;
 
+
+int g_bFull = 0; // If full characteristcs should be discovered
+
 // Dump content of the buffer
 int dump_buffer(uint8_t * buf, ssize_t buflen) {
     int i;
@@ -1161,7 +1164,10 @@ void show_usage_screen(void) {
     printf("\n");
     printf("Usage: amlink [options] [command]\n"
             "Options:\n"
-            "  -V, --verbose Verbose mode, messages are dumped to console\n"
+            "  -V, --verbose Verbose mode \n"
+            "    More messages are dumped to console.\n"
+            "  --full Full characteristics discovery. \n"
+            "    If specified handles are queried.\n"
             "  --i, --adapter uuid|hci<N>\n"
             "    Interface adapter to use (default is hci0)\n"
             "  --b, --device uuid \n"
@@ -1197,6 +1203,7 @@ static void do_command_line(int argc, char * const argv[]) {
         int option_index = 0;
         static struct option long_options[] = {
               { "verbose", 0, 0, 'V' },
+              { "full", 0, 0, 'a' },
               { "lescan", 0, 0, 'l'  },
               { "i", 1, 0, 'i' },
               { "adapter", 1, 0, 'i' },
@@ -1228,6 +1235,10 @@ static void do_command_line(int argc, char * const argv[]) {
 
         case 'V':
             // TODO: implement
+            break;
+
+        case 'a':
+            g_bFull = 1;
             break;
 
         case 'i':
@@ -1317,6 +1328,15 @@ int main(int argc, char **argv) {
     g_maint_led.led = 6;
     g_maint_led.speed = 1;
 
+    // Set default handles
+    g_char[AMIIGO_UUID_STATUS].value_handle = 0x0025;
+    g_char[AMIIGO_UUID_CONFIG].value_handle = 0x0027;
+    g_char[AMIIGO_UUID_LOGBLOCK].value_handle = 0x0029;
+    g_char[AMIIGO_UUID_FIRMWARE].value_handle = 0x002c;
+    g_char[AMIIGO_UUID_DEBUG].value_handle = 0x002e;
+    g_char[AMIIGO_UUID_BUILD].value_handle = 0x0030;
+    g_char[AMIIGO_UUID_VERSION].value_handle = 0x0032;
+
     // Set parameters based on command line
     do_command_line(argc, argv);
 
@@ -1392,11 +1412,20 @@ int main(int argc, char **argv) {
             " SRC: %s OMTU: %d IMTU %d CID %d\n\n", g_src, opts.omtu, opts.imtu,
             opts.cid);
 
-    // Start by discovering Amiigo handles
-    ret = discover_handles(OPT_START_HANDLE, OPT_END_HANDLE);
-    if (ret) {
-        fprintf(stderr, "discover_handles() error\n");
-        return -1;
+    if (g_bFull) {
+        // Start by discovering Amiigo handles
+        ret = discover_handles(OPT_START_HANDLE, OPT_END_HANDLE);
+        if (ret) {
+            fprintf(stderr, "discover_handles() error\n");
+            return -1;
+        }
+    } else {
+        // Use default handles and discover the device
+        ret = discover_device();
+        if (ret) {
+            fprintf(stderr, "discover_device() error\n");
+            return -1;
+        }
     }
 
     tv.tv_sec = 0;
