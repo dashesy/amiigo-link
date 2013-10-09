@@ -139,9 +139,9 @@ int g_sock; // Link socket
 size_t g_buflen; // Established MTU
 uint32_t g_read_logs = 0;  // Logs downloaded so far
 uint32_t g_total_logs = 0; // Total number of logs tp be downloaded
+int g_bValidAccel = 0; // If any uncompressed accel is received
 
-#define MAX_LOG_ENTRIES (WED_LOG_ACCEL_CMP + 1)
-FILE * g_logFile[MAX_LOG_ENTRIES] = { NULL };
+FILE * g_logFile = NULL; // file to download logs
 
 FILE * g_fwImageFile = NULL; // Firmware image file
 uint32_t g_fwImageSize = 0; // Firmware image size in bytes
@@ -390,14 +390,14 @@ int exec_reset(enum AMIIGO_CMD cmd) {
 // Open file for logging
 // Inputs:
 //   szBase - the base name of the log
-FILE * log_file_open(const char * szBase) {
+FILE * log_file_open() {
     char szDateTime[256];
     char szFullName[1024] = { 0 };
     time_t now = time(NULL);
     // Use date-time to avoid overwriting logs
     strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now));
     // Use other metadata to distinguish each log
-    sprintf(szFullName, "%s_%u_%u_%u_%s.log", szBase, g_logTag.tag,
+    sprintf(szFullName, "Log_%u_%u_%u_%s.log", g_logTag.tag,
             g_logTime.timestamp, g_logTime.flags, szDateTime);
 
     FILE * fp = fopen(szFullName, "w");
@@ -563,11 +563,10 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             if (reset_detected) {
                 printf(" Resume downloading.\n");
                 // Close log files, to have them split on next packet
-                for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
-                    if (g_logFile[i] != NULL) {
-                        fclose(g_logFile[i]);
-                        g_logFile[i] = NULL;
-                    }
+                if (g_logFile != NULL)
+                {
+                    fclose(g_logFile);
+                    g_logFile = NULL;
                 }
             }
 
@@ -575,25 +574,21 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         case WED_LOG_ACCEL:
             packet_len = sizeof(g_logAccel);
 
-            if (g_logFile[log_type] == NULL) {
-                g_logFile[log_type] = log_file_open("Accel");
-                fprintf(g_logFile[log_type], "x,y,z\n");
-            }
+            if (g_logFile == NULL)
+                g_logFile = log_file_open();
 
+            g_bValidAccel = 1;
             g_logAccel.type = log_type;
             for (i = 0; i < 3; ++i)
                 g_logAccel.accel[i] = buf[payload + 1 + i];
-            fprintf(g_logFile[log_type], "%d,%d,%d\n", g_logAccel.accel[0],
+            fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
                     g_logAccel.accel[1], g_logAccel.accel[2]);
             break;
         case WED_LOG_LS_CONFIG:
             packet_len = sizeof(g_logLSConfig);
 
-            if (g_logFile[log_type] == NULL) {
-                g_logFile[log_type] = log_file_open("LS_Config");
-                fprintf(g_logFile[log_type],
-                        "dac_on,dac_off,level_led,gain,log_size\n");
-            }
+            if (g_logFile == NULL)
+                g_logFile = log_file_open();
 
             g_logLSConfig.type = log_type;
             g_logLSConfig.dac_on = buf[payload + 1];
@@ -601,7 +596,8 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             g_logLSConfig.level_led = buf[payload + 3];
             g_logLSConfig.gain = buf[payload + 4];
             g_logLSConfig.log_size = buf[payload + 5];
-            fprintf(g_logFile[log_type], "%u,%u,%u,%u,%u\n",
+            fprintf(g_logFile, "[\"lightsensor_config\",[\"dac_on\",%u],[\"dac_off\",%u],"
+                    "[\"level_led\",%u],[\"gain\",%u],[\"log_size\",%u]]\n",
                     g_logLSConfig.dac_on, g_logLSConfig.dac_off,
                     g_logLSConfig.level_led, g_logLSConfig.gain, g_logLSConfig.log_size);
             break;
@@ -619,45 +615,54 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 logLSData.val[0] = val16 & 0x3FFF;
                 for (i = 1; i < field_count; ++i)
                     logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
+                val16 = 0;
+                switch(field_count)
+                {
+                case 1:
+                    val16 = 2;
+                    break;
+                case 2:
+                    val16 = 6;
+                    break;
+                case 3:
+                    val16 = 7;
+                    break;
+                }
             } else {
                 packet_len = WEDLogLSDataSize(&buf[payload]);
-                uint8_t meta = (buf[payload] & 0xE0) >> 5;
-                field_count = (meta & 1 ? 1 : 0) + (meta & 2 ? 1 : 0) + (meta & 4 ? 1 : 0);
+                val16 = (buf[payload] & 0xE0) >> 5;
+                field_count = (val16 & 1 ? 1 : 0) + (val16 & 2 ? 1 : 0) + (val16 & 4 ? 1 : 0);
                 for (i = 0; i < field_count; ++i)
                     logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
             }
 
-            if (g_logFile[log_type] == NULL) {
-                g_logFile[log_type] = log_file_open("LS_Data");
-                if (field_count == 2)
-                {
-                    fprintf(g_logFile[log_type],
-                            "on,off\n");
-                }
-                else if (field_count == 3)
-                {
-                    fprintf(g_logFile[log_type],
-                            "on_ir,on_red,off\n");
-                }
+            if (g_logFile == NULL) {
+                g_logFile = log_file_open();
             }
 
-
-            for (i = 0; i < field_count; ++i) {
-                fprintf(g_logFile[log_type], "%u", logLSData.val[i]);
-                if (i < field_count - 1)
-                    fprintf(g_logFile[log_type], ",");
+            if (field_count)
+            {
+                int cnt = 0;
+                fprintf(g_logFile, "[\"lightsensor\"");
+                if (val16 & 1 ? 1 : 0)
+                    fprintf(g_logFile, ",[\"red\",%u]", logLSData.val[cnt++]);
+                if (val16 & 2 ? 1 : 0)
+                    fprintf(g_logFile, ",[\"ir\",%u]", logLSData.val[cnt++]);
+                if (val16 & 4 ? 1 : 0)
+                    fprintf(g_logFile, ",[\"off\",%u]", logLSData.val[cnt++]);
+                fprintf(g_logFile, "]\n");
             }
-            fprintf(g_logFile[log_type], "\n");
+
             break;
         case WED_LOG_TEMP:
             packet_len = sizeof(logTemp);
 
-            if (g_logFile[log_type] == NULL)
-                g_logFile[log_type] = log_file_open("Temp");
+            if (g_logFile == NULL)
+                g_logFile = log_file_open();
 
             logTemp.type = log_type;
             logTemp.temperature = att_get_u16(&buf[payload + 1]);
-            fprintf(g_logFile[log_type], "%d\n", logTemp.temperature);
+            fprintf(g_logFile, "[\"temperature\",%d]\n", logTemp.temperature);
             break;
         case WED_LOG_TAG:
             packet_len = sizeof(g_logTag);
@@ -666,11 +671,10 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             g_logTag.tag = att_get_u32(&buf[payload + 1]);
             printf(" split on Tag %u\n", g_logTag.tag);
             // Close log files, to have them split on next packet
-            for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
-                if (g_logFile[i] != NULL) {
-                    fclose(g_logFile[i]);
-                    g_logFile[i] = NULL;
-                }
+            if (g_logFile != NULL)
+            {
+                fclose(g_logFile);
+                g_logFile = NULL;
             }
             break;
         case WED_LOG_ACCEL_CMP:
@@ -696,11 +700,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 break;
             case WED_LOG_ACCEL_CMP_8_BIT:
                 nbits = 8;
-                // This is also uncompressed data
-                if (g_logFile[WED_LOG_ACCEL] == NULL) {
-                    g_logFile[WED_LOG_ACCEL] = log_file_open("Accel");
-                    fprintf(g_logFile[WED_LOG_ACCEL], "x,y,z\n");
-                }
+                g_bValidAccel = 1;
                 break;
             default:
                 break;
@@ -710,9 +710,13 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 break;
             }
 
+
             // We must first get at least one uncompressed accel log
-            if (g_logFile[WED_LOG_ACCEL] == NULL)
+            if (!g_bValidAccel)
                 break;
+
+            if (g_logFile == NULL)
+                g_logFile = log_file_open();
 
             pdu = &buf[payload];
             pdu += 2;
@@ -722,9 +726,8 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                     for (i = 0; i < 3; ++i)
                         g_logAccel.accel[i] = pdu[i];
                     pdu += 3;
-                    fprintf(g_logFile[WED_LOG_ACCEL], "%d,%d,%d\n",
-                            g_logAccel.accel[0], g_logAccel.accel[1],
-                            g_logAccel.accel[2]);
+                    fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
+                            g_logAccel.accel[1], g_logAccel.accel[2]);
                 }
             } else {
                 GetBits gb;
@@ -735,9 +738,8 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                         int8 diff = cmpGetBits(&gb, nbits);
                         g_logAccel.accel[i] += diff;
                     }
-                    fprintf(g_logFile[WED_LOG_ACCEL], "%d,%d,%d\n",
-                            g_logAccel.accel[0], g_logAccel.accel[1],
-                            g_logAccel.accel[2]);
+                    fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
+                            g_logAccel.accel[1], g_logAccel.accel[2]);
                 }
             }
 
@@ -1502,11 +1504,10 @@ int main(int argc, char **argv) {
     close(g_sock);
 
     // Close log files
-    for (i = 0; i < MAX_LOG_ENTRIES; ++i) {
-        if (g_logFile[i] != NULL) {
-            fclose(g_logFile[i]);
-            g_logFile[i] = NULL;
-        }
+    if (g_logFile != NULL)
+    {
+        fclose(g_logFile);
+        g_logFile = NULL;
     }
 
     // Close fw iamge file
