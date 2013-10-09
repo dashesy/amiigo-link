@@ -569,6 +569,9 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                     g_logFile = NULL;
                 }
             }
+            if (g_logFile == NULL)
+                break;
+            fprintf(g_logFile, "[\"timestamp\",[%u,%u]]\n", g_logTime.timestamp, g_logTime.flags);
 
             break;
         case WED_LOG_ACCEL:
@@ -636,9 +639,8 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                     logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
             }
 
-            if (g_logFile == NULL) {
+            if (g_logFile == NULL)
                 g_logFile = log_file_open();
-            }
 
             if (field_count)
             {
