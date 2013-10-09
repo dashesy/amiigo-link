@@ -115,6 +115,9 @@ enum AMIIGO_CMD {
 } g_cmd = AMIIGO_CMD_NONE;
 
 WEDVersion g_ver; // Firmware version
+unsigned int g_flat_ver = 0; // Flat version number to compare
+#define FW_VERSION(Major, Minor, Build) (Major * 10000u + Minor * 100u + Build)
+
 WEDConfigLS g_config_ls; // Light configuration
 WEDConfigAccel g_config_accel; // Acceleration sensors configuration
 WEDMaintLED g_maint_led; // Blink command
@@ -537,19 +540,6 @@ int process_download(uint8_t * buf, ssize_t buflen) {
     int packet_len;
     int payload = 3; // Payload starting position
 
-    int seq_number = (buf[payload] & 0xF0) >> 4;
-    static int prev_seq_number = -1;
-    if (prev_seq_number == -1)
-        prev_seq_number = seq_number - 1;
-    int expected_seq_number = prev_seq_number + 1;
-    if (expected_seq_number == 16)
-        expected_seq_number = 0;
-    if (expected_seq_number != seq_number)
-        printf(" err sequence: expected %d seen %d!\n", expected_seq_number, seq_number);
-    prev_seq_number = seq_number;
-
-    // TODO: use seq_number for reordering packets
-
     WED_LOG_TYPE log_type = buf[payload] & 0x0F;
     while (payload < buflen) {
         g_read_logs++; // Total number of log points downloaded so far
@@ -616,16 +606,29 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                     g_logLSConfig.level_led, g_logLSConfig.gain, g_logLSConfig.log_size);
             break;
         case WED_LOG_LS_DATA:
-            packet_len = WEDLogLSDataSize(&buf[payload]);
-
-            val16 = att_get_u16(&buf[payload + 1]);
-            field_count = ((val16 & 0xC000) >> 14) + 1;
-            if (g_logFile[log_type] == NULL) {
-                g_logFile[log_type] = log_file_open("LS_Data");
+            logLSData.type = log_type;
+            if (g_flat_ver < FW_VERSION(1,7,84))
+            {
+                packet_len = 3 + (sizeof(uint16) * (((WEDLogLSData*)&buf[payload])->val[0] >> 14));
+                val16 = att_get_u16(&buf[payload + 1]);
+                field_count = ((val16 & 0xC000) >> 14) + 1;
                 if (field_count > 3) {
                     fprintf(stderr, "Invalid LS_DATA ignored\n");
                     break;
                 }
+                logLSData.val[0] = val16 & 0x3FFF;
+                for (i = 1; i < field_count; ++i)
+                    logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
+            } else {
+                packet_len = WEDLogLSDataSize(&buf[payload]);
+                uint8_t meta = (buf[payload] & 0xE0) >> 5;
+                field_count = (meta & 1 ? 1 : 0) + (meta & 2 ? 1 : 0) + (meta & 4 ? 1 : 0);
+                for (i = 0; i < field_count; ++i)
+                    logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
+            }
+
+            if (g_logFile[log_type] == NULL) {
+                g_logFile[log_type] = log_file_open("LS_Data");
                 if (field_count == 2)
                 {
                     fprintf(g_logFile[log_type],
@@ -638,10 +641,6 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 }
             }
 
-            logLSData.type = log_type;
-            logLSData.val[0] = val16 & 0x3FFF;
-            for (i = 1; i < field_count; ++i)
-                logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
 
             for (i = 0; i < field_count; ++i) {
                 fprintf(g_logFile[log_type], "%u", logLSData.val[i]);
@@ -974,6 +973,7 @@ int process_data(uint8_t * buf, ssize_t buflen) {
             g_ver.Major = buf[1];
             g_ver.Minor = buf[2];
             g_ver.Build = att_get_u16(&buf[3]);
+            g_flat_ver = FW_VERSION(g_ver.Major, g_ver.Minor, g_ver.Build);
             sprintf(g_szVersion, "%u.%u.%u", g_ver.Major, g_ver.Minor,
                     g_ver.Build);
             // More to discover
@@ -1322,6 +1322,7 @@ int main(int argc, char **argv) {
     memset(&g_logTime, 0, sizeof(g_logTime));
     memset(&g_logAccel, 0, sizeof(g_logAccel));
     memset(&g_logLSConfig, 0, sizeof(g_logLSConfig));
+    memset(&g_ver, 0, sizeof(g_ver));
 
     // Some defulats
     g_maint_led.duration = 5;

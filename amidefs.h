@@ -312,6 +312,10 @@ typedef struct {
 // be overwritten with a rolling sequence number. The sequence number
 // should be used to check for missing or out-of-order packets.
 
+// CNBC: As of 10-3-13 the sequence number has been removed
+// 5 bits are reserved for the type value
+// 3 bits are reserved as type specfic meta data
+
 typedef enum {
 	WED_LOG_TIME,
 	WED_LOG_ACCEL,
@@ -321,6 +325,8 @@ typedef enum {
 	WED_LOG_TAG,
 	WED_LOG_ACCEL_CMP,
 } WED_LOG_TYPE;
+
+#define WED_TAG_BITS 0x1F
 
 // Timestamp records indicate the timestamp of the log entry
 // immediately following it. They will be inserted periodically, or
@@ -411,15 +417,25 @@ typedef struct {
 
 	// A/D readings. There will be 1-3 values present depending on how
 	// many readings were enabled in WEDConfigLS.leds. The order is red,
-	// IR, off, excluding readings that aren't enabled. The upper two
+	// IR, off, excluding readings that aren't enabled. 
+	// The upper two
 	// bits of val[0] indicate how many values are present: 0=val[0],
 	// 1=val[0]+val[1], 2=val[0]+val[1]+val[2].
+
+	// CNBC: As requesed, this has now changed. The upper 3 bits of the type will determin how long the log entry is.
+	// bit 5: is set if we have RED data
+	// bit 6: is set if we have IR data
+	// bit 7: is set if we have OFF data
 	uint16 val[3];
 } PACKED WEDLogLSData;
 
 // Returns the size of a WEDLogLSData entry.
 static inline uint8 WEDLogLSDataSize(void* buf) {
-	return 3 + (sizeof(uint16) * (((WEDLogLSData*)buf)->val[0] >> 14));
+	return sizeof(uint8) + (sizeof(uint16) * (
+		((((WEDLogLSData*)buf)->type & 0x80) ? 1 : 0) + 
+		((((WEDLogLSData*)buf)->type & 0x40) ? 1 : 0) + 
+		((((WEDLogLSData*)buf)->type & 0x20) ? 1 : 0)
+		));
 }
 
 typedef struct {
