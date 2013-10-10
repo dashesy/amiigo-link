@@ -606,7 +606,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             break;
         case WED_LOG_LS_DATA:
             logLSData.type = log_type;
-            if (g_flat_ver < FW_VERSION(1,7,84))
+            if (g_flat_ver < FW_VERSION(1,8,84))
             {
                 packet_len = 3 + (sizeof(uint16) * (((WEDLogLSData*)&buf[payload])->val[0] >> 14));
                 val16 = att_get_u16(&buf[payload + 1]);
@@ -760,7 +760,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         payload += packet_len;
 
         if (payload < buflen)
-            log_type = buf[payload];
+            log_type = buf[payload] & 0x0F;
     } // end while (payload < buflen
 
     printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_read_logs,
