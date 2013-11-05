@@ -889,6 +889,8 @@ int process_status(uint8_t * buf, ssize_t buflen) {
         printf(" (Updating) ");
     if (g_status.status & STATUS_FASTMODE)
         printf(" (Fast Mode) ");
+    else if (g_status.status & STATUS_SLEEPMODE)
+        printf(" (Sleep Mode) ");
     else
         printf(" (Slow Mode) ");
     if (g_status.status & STATUS_CHARGING)
@@ -977,8 +979,8 @@ int process_data(uint8_t * buf, ssize_t buflen) {
             g_ver.Minor = buf[2];
             g_ver.Build = att_get_u16(&buf[3]);
             g_flat_ver = FW_VERSION(g_ver.Major, g_ver.Minor, g_ver.Build);
-            sprintf(g_szVersion, "%u.%u.%u", g_ver.Major, g_ver.Minor,
-                    g_ver.Build);
+            sprintf(g_szVersion, "%u.%u.%u%s", g_ver.Major, g_ver.Minor, g_ver.Build,
+                    g_flat_ver < FW_VERSION(1,8,89) ? " (< 1.8.89: incompatible config)" : "");
             // More to discover
             discover_device();
             break;

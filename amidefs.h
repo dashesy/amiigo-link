@@ -75,6 +75,7 @@ typedef struct {
 #define  STATUS_FASTMODE      0x02
 #define  STATUS_CHARGING      0x04  
 #define  STATUS_LS_INPROGRESS 0x08
+#define  STATUS_SLEEPMODE     0x10
 
 // Top-level struct for characteristic UUID AMI_UUID(WED_UUID_STATUS)
 typedef struct {
@@ -89,6 +90,7 @@ typedef struct {
 	// Bit 1: Are we in fast mode?
 	// bit 2: Are we charging.
 	// bit 3: LS collection in progress.
+	// bit 4: are we in sleep mode
 	uint8 status; 
 
 	// Current time in WED_TIME_TICKS_PER_SEC
@@ -111,7 +113,7 @@ typedef struct {
 
 #define WED_RATE_SCALE 10
 
-// This is used to calculate the values for the slow/fast_rate
+// This is used to calculate the values for the slow/fast/sleep _rate
 // parameters below. interval_msec is the data logging interval in
 // milliseconds.  Max interval is 255 * WED_RATE_SCALE msec. Min
 // interval is TBD. Setting the interval to 0 will disable logging for
@@ -123,19 +125,28 @@ static inline uint16 WEDConfigRateParam(uint32 interval_msec) {
 	return tmp;
 }
 
+
+#define CFG_FLUSH_LOG      0x01
+#define CFG_WRITE_TAG      0x02
+#define CFG_TIMEOUT_VALID  0x04
+#define CFG_NEW_MODE       0x08
+
 typedef struct {
 	// TBD: params to determine when to use slow vs. fast logging rate
 
 	// For testing, causes the test data to be generated according to
 	// the fast or slow logging rates.
-	uint8 usefast;
+	uint8 usemode;
 	uint16 fast_mode_timeout;  // in sec
+	uint8 flags;
+	uint8 tag[WED_TAG_SIZE];
 } PACKED WEDConfigGeneral;
 
 typedef struct {
 	// Rate of data logging, calculate with WEDConfigRateParam
 	uint16 slow_rate;
 	uint16 fast_rate;
+	uint16 sleep_rate;
 
 	// These values correspond directly to the same-name MMA8451Q registers.
 	// NOTE: These are not hooked up right now.
@@ -174,6 +185,7 @@ typedef struct {
 	// every 'interval' seconds. Sampling is disabled if interval is 0.
 	uint16 fast_interval;
 	uint16 slow_interval;
+	uint16 sleep_interval;
 	uint8 duration;
 
 	uint8 gain;      // 0-127, MAX gain the system will try and calatrage to
@@ -196,6 +208,7 @@ typedef struct {
 	// Rate of data logging, calculate with WEDConfigRateParam
 	uint16 slow_rate;
 	uint16 fast_rate;
+	uint16 sleep_rate;
 } PACKED WEDConfigTemp;
 
 typedef struct {
@@ -330,10 +343,11 @@ typedef enum {
 
 // Timestamp records indicate the timestamp of the log entry
 // immediately following it. They will be inserted periodically, or
-// any time the sampling rate changes between fast and slow.
+// any time the sampling rate changes between fast, slow or sleep.
 
-#define TIMESTAMP_FASTRATE 0x01
-#define TIMESTAMP_REBOOTED 0x80
+#define TIMESTAMP_FASTRATE  0x01
+#define TIMESTAMP_SLEEPRATE 0x02
+#define TIMESTAMP_REBOOTED  0x80
 
 typedef struct {
 	uint8 type; // WED_LOG_TIME
