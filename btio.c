@@ -41,12 +41,11 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 
-#ifdef __ANDROID__
 #include "jni/bluetooth.h"
 #include "jni/l2cap.h"
 #include "jni/rfcomm.h"
 #include "jni/sco.h"
-#else
+#if 0
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/l2cap.h>
 #include <bluetooth/rfcomm.h>

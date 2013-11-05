@@ -13,12 +13,11 @@
 #include <getopt.h>
 #include <time.h>
 
-#ifdef __ANDROID__
 #include "jni/bluetooth.h"
 #include "jni/l2cap.h"
 #include "jni/hci.h"
 #include "jni/hci_lib.h"
-#else
+#if 0
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/l2cap.h>
 #include <bluetooth/hci.h>

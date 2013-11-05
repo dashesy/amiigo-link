@@ -32,7 +32,7 @@ CXX := g++
 OUTPUTBIN = amlink
 
 # Additional libraries
-LIBS := -lbluetooth
+LIBS := 
 
 LFLAGS  = $(LIBDIRS) $(LIBS) 
 
@@ -45,6 +45,10 @@ COMMON_SRC := ./main.c \
               ./btio.c \
               ./att.c \
               ./hcitool.c \
+              
+# Avoid the need to latest BlueZ
+COMMON_SRC += jni/bluetooth.c\
+              jni/hci.c \
 
 COMMON_OBJS := $(patsubst %.c, .obj/%.o, $(notdir $(COMMON_SRC)))
 
