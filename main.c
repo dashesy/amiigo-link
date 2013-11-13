@@ -551,25 +551,17 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         case WED_LOG_TIME:
             packet_len = sizeof(g_logTime);
 
+            if (g_logFile == NULL)
+                g_logFile = log_file_open();
+
             g_logTime.type = log_type;
             g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
             g_logTime.flags = buf[payload + 5];
-            reset_detected = g_logTime.flags & 0x80;
+            reset_detected = g_logTime.flags & TIMESTAMP_REBOOTED;
 
             if (reset_detected)
                 printf(" reset detected.\n");
 
-            if (reset_detected) {
-                printf(" Resume downloading.\n");
-                // Close log files, to have them split on next packet
-                if (g_logFile != NULL)
-                {
-                    fclose(g_logFile);
-                    g_logFile = NULL;
-                }
-            }
-            if (g_logFile == NULL)
-                break;
             fprintf(g_logFile, "[\"timestamp\",[%u,%u]]\n", g_logTime.timestamp, g_logTime.flags);
 
             break;
@@ -668,15 +660,12 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         case WED_LOG_TAG:
             packet_len = sizeof(g_logTag);
 
+            if (g_logFile == NULL)
+                g_logFile = log_file_open();
+
             g_logTag.type = log_type;
             g_logTag.tag = att_get_u32(&buf[payload + 1]);
-            printf(" split on Tag %u\n", g_logTag.tag);
-            // Close log files, to have them split on next packet
-            if (g_logFile != NULL)
-            {
-                fclose(g_logFile);
-                g_logFile = NULL;
-            }
+            fprintf(g_logFile, "[\"tag\",%u]\n", g_logTag.tag);
             break;
         case WED_LOG_ACCEL_CMP:
             packet_len = WEDLogAccelCmpSize(&buf[payload]);
@@ -758,6 +747,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         // Move forward within aggregate packet
         payload += packet_len;
 
+        //printf("Type: %u, len: %u, total: %u\n", log_type, packet_len, buflen);
         if (payload < buflen)
             log_type = buf[payload] & 0x0F;
     } // end while (payload < buflen
@@ -1192,7 +1182,7 @@ void show_usage_screen(void) {
             "       resetlogs: reset buffered logs\n"
             "       resetcpu: restart the board\n"
             "       resetconfigs: set all configs to default\n"
-            "  --config file\n"
+            "  --input file\n"
             "    Configuration file to use for given command.\n"
             "  --fwupdate file\n"
             "    Firmware image file to to use for update.\n"
