@@ -129,7 +129,7 @@ struct {
 
     // Tag data from WED_MAINT_TAG command
     uint32_t tag;
-} g_logTag;
+} PACKED g_logTag;
 WEDLogTimestamp g_logTime;
 WEDLogAccel g_logAccel;
 WEDLogLSConfig g_logLSConfig;
