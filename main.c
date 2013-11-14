@@ -142,6 +142,7 @@ int g_bValidAccel = 0; // If any uncompressed accel is received
 
 FILE * g_logFile = NULL; // file to download logs
 
+uint32_t g_fwup_speedup = 10; // How much to overload firmware update
 FILE * g_fwImageFile = NULL; // Firmware image file
 uint32_t g_fwImageSize = 0; // Firmware image size in bytes
 uint32_t g_fwImageWrittenSize = 0;
@@ -464,25 +465,45 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
         ret = -1;
     } else if (fwstatus.status == WED_FWSTATUS_UPLOAD_READY) {
 
-        int i;
-        for (i = 0; i < WED_FW_STREAM_BLOCKS; ++i) {
-            WEDFirmwareCommand fwdata;
-            memset(&fwdata, 0, sizeof(fwdata));
-            fwdata.pkt_type = WED_FIRMWARE_DATA_BLOCK;
-            size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE,
-                    g_fwImageFile);
-            if (len < WED_FW_BLOCK_SIZE)
-                break;
-            g_fwImageWrittenSize += len;
-            exec_write(handle, (uint8_t *) &fwdata, sizeof(fwdata));
-            if (feof(g_fwImageFile) || g_fwImageWrittenSize == g_fwImageSize)
-                break;
+        int bRetry = 0;
+        int bFinished = 0;
+        int i, j;
+        for (j = 0; j < g_fwup_speedup && !bFinished && !bRetry; ++j)
+        {
+            for (i = 0; i < WED_FW_STREAM_BLOCKS; ++i) {
+                WEDFirmwareCommand fwdata;
+                memset(&fwdata, 0, sizeof(fwdata));
+                fwdata.pkt_type = WED_FIRMWARE_DATA_BLOCK;
+                long int offset = ftell(g_fwImageFile);
+                size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE,
+                        g_fwImageFile);
+                if (len < WED_FW_BLOCK_SIZE)
+                {
+                    bFinished = 1;
+                    break;
+                }
+                g_fwImageWrittenSize += len;
+                ret = exec_write(handle, (uint8_t *) &fwdata, sizeof(fwdata));
+                if (ret)
+                {
+                    fseek(g_fwImageFile, offset, SEEK_SET);
+                    bRetry = 1;
+                    break;
+                }
+                if (feof(g_fwImageFile) || g_fwImageWrittenSize == g_fwImageSize)
+                {
+                    bFinished = 1;
+                    break;
+                }
+            }
+            printf("\rUpdating ... %u out of %u  (%2.0f%%)", g_fwImageWrittenSize,
+                    g_fwImageSize, (g_fwImageWrittenSize * 100.0) / g_fwImageSize);
+            fflush(stdout);
+            usleep(100);
         }
-        printf("\rUpdating ... %u out of %u  (%2.0f%%)", g_fwImageWrittenSize,
-                g_fwImageSize, (g_fwImageWrittenSize * 100.0) / g_fwImageSize);
 
         // Done uploding in our end
-        if (feof(g_fwImageFile) || g_fwImageWrittenSize == g_fwImageSize) {
+        if (bFinished) {
             printf(" (data done)");
             WEDFirmwareCommand fwcmd;
             memset(&fwcmd, 0, sizeof(fwcmd));
