@@ -145,7 +145,9 @@ FILE * g_logFile = NULL; // file to download logs
 uint32_t g_fwup_speedup = 10; // How much to overload firmware update
 FILE * g_fwImageFile = NULL; // Firmware image file
 uint32_t g_fwImageSize = 0; // Firmware image size in bytes
-uint32_t g_fwImageWrittenSize = 0;
+uint32_t g_fwImageWrittenSize = 0; // bytes transmitted
+uint16_t g_fwImagePage = 0; // Firmwate image total pages
+uint16_t g_fwImageWrittenPage = 0; // pages transmitted
 
 enum DISCOVERY_STATE {
     STATE_NONE = 0,
@@ -475,11 +477,11 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                 memset(&fwdata, 0, sizeof(fwdata));
                 fwdata.pkt_type = WED_FIRMWARE_DATA_BLOCK;
                 long int offset = ftell(g_fwImageFile);
-                size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE,
-                        g_fwImageFile);
+                size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE, g_fwImageFile);
                 if (len < WED_FW_BLOCK_SIZE)
                 {
                     bFinished = 1;
+                    printf("(uneven image size!)\n");
                     break;
                 }
                 g_fwImageWrittenSize += len;
@@ -488,6 +490,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                 {
                     fseek(g_fwImageFile, offset, SEEK_SET);
                     bRetry = 1;
+                    printf("(write retry)\n");
                     break;
                 }
                 if (feof(g_fwImageFile) || g_fwImageWrittenSize == g_fwImageSize)
@@ -495,9 +498,10 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                     bFinished = 1;
                     break;
                 }
-            }
-            printf("\rUpdating ... %u out of %u  (%2.0f%%)", g_fwImageWrittenSize,
-                    g_fwImageSize, (g_fwImageWrittenSize * 100.0) / g_fwImageSize);
+            } // end for (i
+            g_fwImageWrittenPage++;
+            printf("\rUpdating ... %u out of %u  (page %u/%u=%2.0f%%)", g_fwImageWrittenSize, g_fwImageSize,
+                    g_fwImageWrittenPage, g_fwImagePage, (g_fwImageWrittenSize * 100.0) / g_fwImageSize);
             fflush(stdout);
             usleep(100);
         }
@@ -1087,20 +1091,20 @@ int set_update_file(const char * szName) {
     // TODO: check CRC
     //uint16_t fw_crc = hdr[0];
     uint16_t fw_id = hdr[1];
-    uint16_t fw_imgpages = hdr[2];
+    g_fwImagePage = hdr[2];
 
     if (fw_id != FWUP_HDR_ID) {
         fprintf(stderr, "Firmware image (%s) invalid!\n", szName);
         return -1;
     }
 
-    if (WED_FW_BLOCK_SIZE * WED_FW_STREAM_BLOCKS * fw_imgpages
-            != g_fwImageSize) {
+    if (WED_FW_BLOCK_SIZE * WED_FW_STREAM_BLOCKS * g_fwImagePage != g_fwImageSize) {
         fprintf(stderr, "Firmware image (%s) invalid size!\n", szName);
         return -1;
     }
 
     g_fwImageWrittenSize = 0;
+    g_fwImageWrittenPage = 0;
     fseek(g_fwImageFile, 0, SEEK_SET);
 
     g_cmd = AMIIGO_CMD_FWUPDATE;
