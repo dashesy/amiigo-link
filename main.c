@@ -142,7 +142,7 @@ int g_bValidAccel = 0; // If any uncompressed accel is received
 
 FILE * g_logFile = NULL; // file to download logs
 
-uint32_t g_fwup_speedup = 1; // How much to overload firmware update
+uint32_t g_fwup_speedup = 10; // How much to overload firmware update
 FILE * g_fwImageFile = NULL; // Firmware image file
 uint32_t g_fwImageSize = 0; // Firmware image size in bytes
 uint32_t g_fwImageWrittenSize = 0; // bytes transmitted
@@ -1399,13 +1399,21 @@ int main(int argc, char **argv) {
         fprintf(stderr, "bt_io_connect (%d)\n", errno);
         return -1;
     }
-    // Increase socket's receive buffer
-    int opt_rcvbuf = (2 * 1024 * 1024);
-    ret = setsockopt(g_sock, SOL_SOCKET, SO_RCVBUF, (char *) &opt_rcvbuf,
-            sizeof(int));
-    if (ret) {
-        fprintf(stderr, "setsockopt SO_RCVBUF (%d)\n", errno);
-        return -1;
+    {
+        // Increase socket's receive buffer
+        int opt_rcvbuf = (2 * 1024 * 1024);
+        ret = setsockopt(g_sock, SOL_SOCKET, SO_RCVBUF, (char *) &opt_rcvbuf, sizeof(int));
+        if (ret) {
+            fprintf(stderr, "setsockopt SO_RCVBUF (%d)\n", errno);
+            return -1;
+        }
+        // Increase socket's send buffer
+        int opt_sndbuf = (2 * 1024 * 1024);
+        ret = setsockopt(g_sock, SOL_SOCKET, SO_SNDBUF, (char *) &opt_sndbuf, sizeof(int));
+        if (ret) {
+            fprintf(stderr, "setsockopt SO_SNDBUF (%d)\n", errno);
+            return -1;
+        }
     }
 
     int ready;
