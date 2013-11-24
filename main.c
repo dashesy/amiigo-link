@@ -1494,20 +1494,18 @@ int main(int argc, char **argv) {
         uint8_t buf[1024] = {0};
         ssize_t len = 0, buflen = 0;
         if (ready > 0 && FD_ISSET(g_sock, &read_fds)) {
-            do {
-                len = recv(g_sock, &buf[len], sizeof(buf), 0);
-                if (len < 0) {
-                    if (errno == EAGAIN) {
-                        len = 0;
-                    } else {
-                        fprintf(stderr, "main recv() error (%d)\n", errno);
-                        len = -1;
-                        break;
-                    }
+            len = recv(g_sock, &buf[len], sizeof(buf), 0);
+            if (len < 0) {
+                if (errno == EAGAIN) {
+                    len = 0;
+                } else {
+                    fprintf(stderr, "main recv() error (%d)\n", errno);
+                    len = -1;
+                    break;
                 }
-                if (len > 0)
-                    buflen = buflen + len;
-            } while (len > 0 && buflen < g_buflen);
+            }
+            if (len > 0)
+                buflen = buflen + len;
             // If error in receive, quit
             if (len < 0)
                 break;
