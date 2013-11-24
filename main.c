@@ -142,7 +142,7 @@ int g_bValidAccel = 0; // If any uncompressed accel is received
 
 FILE * g_logFile = NULL; // file to download logs
 
-uint32_t g_fwup_speedup = 10; // How much to overload firmware update
+uint32_t g_fwup_speedup = 1; // How much to overload firmware update
 FILE * g_fwImageFile = NULL; // Firmware image file
 uint32_t g_fwImageSize = 0; // Firmware image size in bytes
 uint32_t g_fwImageWrittenSize = 0; // bytes transmitted
@@ -500,7 +500,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                 }
             } // end for (i
             g_fwImageWrittenPage++;
-            printf("\rUpdating ... %u out of %u  (page %u/%u=%2.0f%%)", g_fwImageWrittenSize, g_fwImageSize,
+            printf("\rUpdating ... %u/%u  page %u/%u (%2.0f%%)", g_fwImageWrittenSize, g_fwImageSize,
                     g_fwImageWrittenPage, g_fwImagePage, (g_fwImageWrittenSize * 100.0) / g_fwImageSize);
             fflush(stdout);
             usleep(100);
@@ -880,7 +880,6 @@ int discover_device() {
 
     // Read the handle of interest
     int ret = exec_read(handle);
-
     return ret;
 }
 
@@ -1421,6 +1420,22 @@ int main(int argc, char **argv) {
     if (!(ready > 0 && FD_ISSET(g_sock, &write_fds))) {
         fprintf(stderr, "Connection time out %d error (%d)\n", ready, errno);
         return -1;
+    }
+    {
+        int soerr = 0;
+        socklen_t olen = sizeof(soerr);
+        if (getsockopt(g_sock, SOL_SOCKET , SO_ERROR, &soerr, &olen) < 0)
+        {
+            fprintf(stderr, "getsockopt() time out error (%d)\n", errno);
+            return -1;
+        }
+        if (soerr)
+        {
+            fprintf(stderr, "Socket error %d error (%d)\n", soerr, errno);
+            return -1;
+        }
+        // Clear errno
+        errno = 0;
     }
 
     // Get the CID and MTU information
