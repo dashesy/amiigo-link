@@ -12,6 +12,7 @@
 #include <termios.h>
 #include <getopt.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "jni/bluetooth.h"
 #include "jni/l2cap.h"
@@ -1110,6 +1111,25 @@ int set_update_file(const char * szName) {
     return 0;
 }
 
+void trim(char *str)
+{
+    int i;
+    int begin = 0;
+    int end = strlen(str) - 1;
+
+    while (isspace(str[begin]))
+        begin++;
+
+    while ((end >= begin) && isspace(str[end]))
+        end--;
+
+    // Shift all characters back to the start of the string array.
+    for (i = begin; i <= end; i++)
+        str[i - begin] = str[i];
+
+    str[i - begin] = '\0'; // Null terminate string.
+}
+
 int set_input_file(const char * szName) {
     char szCmd[256];
     char szParam[256];
@@ -1120,13 +1140,17 @@ int set_input_file(const char * szName) {
         return -1;
     }
     while (fgets(szCmd, 256, fp) != NULL) {
+        trim(szCmd);
         if (szCmd[0] == '#')
             continue; // Ignore comments
         if (sscanf(szCmd, "%s %s", szParam, szVal) != 2)
         {
-            fprintf(stderr, "Command %s in %s not recognized!\n", szCmd, szName);
-            fclose(fp);
-            return -1;
+            if (strlen(szCmd) > 1)
+            {
+                fprintf(stderr, "Command %s in %s not recognized!\n", szCmd, szName);
+                fclose(fp);
+                return -1;
+            }
         }
 
         long val = strtol(szVal, NULL, 0);
