@@ -1111,14 +1111,24 @@ int set_update_file(const char * szName) {
 }
 
 int set_input_file(const char * szName) {
+    char szCmd[256];
+    char szParam[256];
+    char szVal[256];
     FILE * fp = fopen(szName, "r");
     if (fp == NULL) {
         fprintf(stderr, "Configuration file (%s) not accessible!\n", szName);
         return -1;
     }
-    char szParam[256];
-    char szVal[256];
-    while (fscanf(fp, "%s %s", szParam, szVal) != EOF) {
+    while (fgets(szCmd, 256, fp) != NULL) {
+        if (szCmd[0] == '#')
+            continue; // Ignore comments
+        if (sscanf(szCmd, "%s %s", szParam, szVal) != 2)
+        {
+            fprintf(stderr, "Command %s in %s not recognized!\n", szCmd, szName);
+            fclose(fp);
+            return -1;
+        }
+
         long val = strtol(szVal, NULL, 0);
         //---------- Light ----------------------------
         if (strcasecmp(szParam, "ls_on_time") == 0) {
