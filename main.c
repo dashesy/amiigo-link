@@ -1151,6 +1151,7 @@ int set_input_file(const char * szName) {
                 fclose(fp);
                 return -1;
             }
+            continue;
         }
 
         long val = strtol(szVal, NULL, 0);
