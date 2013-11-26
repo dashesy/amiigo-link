@@ -150,6 +150,9 @@ uint32_t g_fwImageWrittenSize = 0; // bytes transmitted
 uint16_t g_fwImagePage = 0; // Firmwate image total pages
 uint16_t g_fwImageWrittenPage = 0; // pages transmitted
 
+// Downloaded file
+char g_szFullName[1024] = { 0 };
+
 enum DISCOVERY_STATE {
     STATE_NONE = 0,
     STATE_BUILD,
@@ -395,15 +398,13 @@ int exec_reset(enum AMIIGO_CMD cmd) {
 //   szBase - the base name of the log
 FILE * log_file_open() {
     char szDateTime[256];
-    char szFullName[1024] = { 0 };
     time_t now = time(NULL);
     // Use date-time to avoid overwriting logs
     strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now));
     // Use other metadata to distinguish each log
-    sprintf(szFullName, "Log_%u_%u_%u_%s.log", g_logTag.tag,
-            g_logTime.timestamp, g_logTime.flags, szDateTime);
+    sprintf(g_szFullName, "Log_%s.log", szDateTime);
 
-    FILE * fp = fopen(szFullName, "w");
+    FILE * fp = fopen(g_szFullName, "w");
     return fp;
 }
 
@@ -782,7 +783,10 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             g_total_logs, (100.0 * g_read_logs) / g_total_logs);
     fflush(stdout);
     if (g_read_logs >= g_total_logs || g_status.num_log_entries == 0)
+    {
+        printf("\n%s", g_szFullName);
         g_state = STATE_COUNT; // Done with command
+    }
     return 0;
 }
 
