@@ -613,13 +613,12 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
             g_logLSConfig.type = log_type;
             g_logLSConfig.dac_on = buf[payload + 1];
-            g_logLSConfig.dac_off = buf[payload + 2];
+            g_logLSConfig.reserved = buf[payload + 2];
             g_logLSConfig.level_led = buf[payload + 3];
             g_logLSConfig.gain = buf[payload + 4];
             g_logLSConfig.log_size = buf[payload + 5];
-            fprintf(g_logFile, "[\"lightsensor_config\",[\"dac_on\",%u],[\"dac_off\",%u],"
-                    "[\"level_led\",%u],[\"gain\",%u],[\"log_size\",%u]]\n",
-                    g_logLSConfig.dac_on, g_logLSConfig.dac_off,
+            fprintf(g_logFile, "[\"lightsensor_config\",[\"dac_on\",%u],"
+                    "[\"level_led\",%u],[\"gain\",%u],[\"log_size\",%u]]\n", g_logLSConfig.dac_on,
                     g_logLSConfig.level_led, g_logLSConfig.gain, g_logLSConfig.log_size);
             break;
         case WED_LOG_LS_DATA:

@@ -1,27 +1,15 @@
 #ifndef AMIDEFS_H
 #define AMIDEFS_H
 
-// iOS Compatibility
-#ifdef __APPLE__
-typedef UInt8 uint8;
-typedef UInt16 uint16;
-typedef UInt32 uint32;
+#if defined(__GNUC__) || defined(__clang__)
 typedef int8_t int8;
-typedef int16_t int16;
-#define PACKED __attribute__((__packed__))
-#endif
-
-#ifdef __linux__
 typedef uint8_t uint8;
+typedef int16_t int16;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
-typedef int8_t int8;
-typedef int16_t int16;
-#define PACKED __attribute__((__packed__))
-#endif
-
-#ifndef PACKED
-#define PACKED
+#  define PACKED __attribute__((__packed__))
+#else
+#  define PACKED
 #endif
 
 #ifdef __cplusplus
@@ -348,6 +336,7 @@ typedef enum {
 #define TIMESTAMP_FASTRATE  0x01
 #define TIMESTAMP_SLEEPRATE 0x02
 #define TIMESTAMP_REBOOTED  0x80
+#define TIMESTAMP_DBG       0x10
 
 typedef struct {
 	uint8 type; // WED_LOG_TIME
@@ -355,7 +344,6 @@ typedef struct {
 	// Timestamp for next log entry, in WED_TIME_TICKS_PER_SEC
 	uint32 timestamp;
 
-	// If 1, following log entries were sampled at the fast rate
 	uint8 flags;
 } PACKED WEDLogTimestamp;
 
@@ -413,16 +401,18 @@ static inline uint8 WEDLogAccelCmpSize(void* buf) {
 	return 2 + ((uint8)bits - 1) / 8 + 1;
 }
 
+#define LSCONF_LAST      0xFF // Last log (all data will be 0xFF)
+#define LSCONF_LED_MASK  0x70 // config led number
+
 // This is generated once at the beginning and end of each interval.
-// at the end, all the data will be 0xff
 typedef struct {
 	uint8 type; // WED_LOG_LS_CONFIG
 
-	uint8 dac_on;    // DAC setting for led on
-	uint8 dac_off;   // DAC setting for led off
+	uint8 dac_on;    // DAC setting for led
+	uint8 reserved;
 	uint8 level_led; // LED driver setting for led
-	uint8 gain;      // calabrated gain value
-	uint8 log_size;  // bytes per log entry.
+	uint8 gain;      // calibrated gain value for led
+	uint8 log_size;  // log state bifield LSCONF_*
 } PACKED WEDLogLSConfig;
 
 // This is generated once for each red/IR/off sample group.
