@@ -2,11 +2,23 @@
 #define AMIDEFS_H
 
 #if defined(__GNUC__) || defined(__clang__)
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+#include <stdint.h>
+
 typedef int8_t int8;
 typedef uint8_t uint8;
 typedef int16_t int16;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
+#if defined(__GNUC__)
+#include <stdbool.h>
+#endif
 #  define PACKED __attribute__((__packed__))
 #else
 #  define PACKED
@@ -37,6 +49,7 @@ extern "C" {
 #define WED_UUID_DEBUG    0x0005 // Data type: WEDDebug
 #define WED_UUID_BUILD    0x0006 // Data type: String
 #define WED_UUID_VERSION  0x0007 // Data type: WEDVersion
+
 // NOTE: Structs below are byte packed. Integers are little-endian.
 
 // # of ticks per second for timestamps
