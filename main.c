@@ -568,7 +568,8 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
     WED_LOG_TYPE log_type = buf[payload] & 0x0F;
     while (payload < buflen) {
-        g_read_logs++; // Total number of log points downloaded so far
+        if (log_type != WED_LOG_ACCEL_CMP)
+            g_read_logs++; // Total number of log points downloaded so far
 
         switch (log_type) {
         uint16_t val16;
@@ -587,7 +588,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             reset_detected = g_logTime.flags & TIMESTAMP_REBOOTED;
 
             if (reset_detected)
-                printf(" reset detected.\n");
+                printf(" (reboot detected)\n");
 
             fprintf(g_logFile, "[\"timestamp\",[%u,%u]]\n", g_logTime.timestamp, g_logTime.flags);
 
@@ -1362,7 +1363,7 @@ char kbhit() {
 
 int main(int argc, char **argv) {
     int ret;
-    time_t start_time, stop_time;
+    time_t start_time, stop_time, download_time;
 
     memset(g_char, 0, sizeof(g_char));
     int i;
@@ -1516,6 +1517,8 @@ int main(int argc, char **argv) {
     FD_SET(g_sock, &read_fds);
 
     start_time = time(NULL);
+    stop_time = start_time;
+    download_time = start_time;
 
     for (;;) {
         // No need to keep-alive during firmware update
@@ -1527,6 +1530,15 @@ int main(int argc, char **argv) {
                 printf(" (Keep alive)\n");
                 start_time = stop_time;
                 exec_read(g_char[AMIIGO_UUID_STATUS].value_handle);
+            }
+            if (g_state == STATE_DOWNLOAD) {
+                diff = difftime(stop_time, download_time);
+                // Download timeout reached
+                if (diff > 2)
+                {
+                    printf(" (Timeout)\n");
+                    break;
+                }
             }
         }
 
@@ -1557,6 +1569,7 @@ int main(int argc, char **argv) {
                 break;
             if (buflen == 0)
                 continue;
+            download_time = stop_time;
             // Process incoming data
             ret = process_data(buf, buflen);
             if (ret) {
