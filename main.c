@@ -480,8 +480,11 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                 fwdata.pkt_type = WED_FIRMWARE_DATA_BLOCK;
                 long int offset = ftell(g_fwImageFile);
                 size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE, g_fwImageFile);
-                if (len < WED_FW_BLOCK_SIZE)
-                {
+                if (len == 0) {
+                    printf("(ended)\n");
+                    break;
+                }
+                if (len < WED_FW_BLOCK_SIZE) {
                     bFinished = 1;
                     printf("(uneven image size!)\n");
                     break;
