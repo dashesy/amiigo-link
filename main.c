@@ -481,6 +481,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                 long int offset = ftell(g_fwImageFile);
                 size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE, g_fwImageFile);
                 if (len == 0) {
+                    bFinished = 1;
                     printf("(ended)\n");
                     break;
                 }
