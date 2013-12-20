@@ -1223,10 +1223,10 @@ int set_input_file(const char * szName) {
 }
 
 void show_usage_screen(void) {
-    printf("\n");
+    printf("Amiigo Link command line utility.\n");
     printf("Usage: amlink [options] [command]\n"
             "Options:\n"
-            "  -V, --verbose Verbose mode \n"
+            "  -v, --verbose Verbose mode \n"
             "    More messages are dumped to console.\n"
             "  --full Full characteristics discovery. \n"
             "    If specified handles are queried.\n"
@@ -1256,7 +1256,6 @@ void show_usage_screen(void) {
             "  --help         Display this usage screen\n");
     printf("amlink is Copyright Amiigo inc\n");
 }
-;
 
 static void do_command_line(int argc, char * const argv[]) {
     // Parse the input
@@ -1264,7 +1263,7 @@ static void do_command_line(int argc, char * const argv[]) {
         int c;
         int option_index = 0;
         static struct option long_options[] = {
-              { "verbose", 0, 0, 'V' },
+              { "verbose", 0, 0, 'v' },
               { "full", 0, 0, 'a' },
               { "lescan", 0, 0, 'l'  },
               { "i", 1, 0, 'i' },
@@ -1278,7 +1277,7 @@ static void do_command_line(int argc, char * const argv[]) {
               { "help", 0, 0, '?' },
               { 0, 0, 0, 0 } };
 
-        c = getopt_long(argc, argv, "Vl?", long_options, &option_index);
+        c = getopt_long(argc, argv, "vl?", long_options, &option_index);
         if (c == -1)
             break;
 
@@ -1295,7 +1294,7 @@ static void do_command_line(int argc, char * const argv[]) {
             exit(0);
             break;
 
-        case 'V':
+        case 'v':
             // TODO: implement
             break;
 
