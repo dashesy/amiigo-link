@@ -116,7 +116,7 @@ enum AMIIGO_CMD {
 
 WEDVersion g_ver; // Firmware version
 unsigned int g_flat_ver = 0; // Flat version number to compare
-#define FW_VERSION(Major, Minor, Build) (Major * 10000u + Minor * 100u + Build)
+#define FW_VERSION(Major, Minor, Build) (Major * 100000u + Minor * 1000u + Build)
 
 WEDConfigLS g_config_ls; // Light configuration
 WEDConfigAccel g_config_accel; // Acceleration sensors configuration
@@ -374,7 +374,7 @@ int exec_reset(enum AMIIGO_CMD cmd) {
         config_maint.command = WED_MAINT_CLEAR_LOG;
         break;
     case AMIIGO_CMD_RESET_CONFIGS:
-        printf("Resetign the configurations to default ...\n");
+        printf("Reseting the configurations to default ...\n");
         config_maint.command = WED_MAINT_RESET_CONFIG;
         break;
     default:
@@ -463,7 +463,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
             fprintf(stderr, "Internal error\n");
             break;
         default:
-            fprintf(stderr, "Unknown error\n");
+            fprintf(stderr, "Unknown error (%d)\n", fwstatus.status);
             break;
         }
         ret = -1;
@@ -538,8 +538,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
         // Done with command
         g_state = STATE_COUNT;
     } else {
-        fprintf(stderr, "Unknown firmware update state (%u)\n",
-                fwstatus.status);
+        fprintf(stderr, "Unknown firmware update state (%u)\n", fwstatus.status);
         ret = -1;
     }
     return ret;
@@ -552,7 +551,6 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
     handle = att_get_u16(&buf[1]);
     if (buflen < 4) {
-        // TODO: Collin: do I need to turn off notification first?
         printf("Last notification handle = 0x%04x\n", handle);
         g_state = STATE_COUNT;
         return 0;
