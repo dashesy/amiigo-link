@@ -575,8 +575,9 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
         switch (log_type) {
         uint16_t val16;
-        uint8_t field_count, nbits, reset_detected;
+        uint8_t field_count, reset_detected;
         uint8_t * pdu;
+        int nbits;
 
         case WED_LOG_TIME:
             packet_len = sizeof(g_logTime);
@@ -703,7 +704,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             logAccelCmp.count_bits = buf[payload + 1];
             field_count = (logAccelCmp.count_bits & 0xF) + 1;
             g_read_logs += field_count;
-            nbits = 0;
+            nbits = -1;
             switch ((logAccelCmp.count_bits & 0x70) >> 4) {
             case WED_LOG_ACCEL_CMP_3_BIT:
                 nbits = 3;
@@ -721,10 +722,14 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 nbits = 8;
                 g_bValidAccel = 1;
                 break;
+            case WED_LOG_ACCEL_CMP_STILL:
+                if (logAccelCmp.count_bits & 0x80)
+                    nbits = 0;
+                break;
             default:
                 break;
             }
-            if (nbits == 0) {
+            if (nbits < 0) {
                 fprintf(stderr, "Invalid ACCEL_CMP ignored\n");
                 break;
             }
@@ -737,6 +742,14 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             if (g_logFile == NULL)
                 g_logFile = log_file_open();
 
+            if (nbits == 0) {
+            	// It is still, just replicate
+                while (field_count--) {
+                    fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
+                            g_logAccel.accel[1], g_logAccel.accel[2]);
+                }
+                break;
+            }
             pdu = &buf[payload];
             pdu += 2;
 

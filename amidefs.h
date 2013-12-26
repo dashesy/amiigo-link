@@ -373,6 +373,7 @@ enum {
 	WED_LOG_ACCEL_CMP_5_BIT,
 	WED_LOG_ACCEL_CMP_6_BIT,
 	WED_LOG_ACCEL_CMP_8_BIT,
+	WED_LOG_ACCEL_CMP_STILL,  // NO DATA FOLLOWS
 };
 
 typedef struct {
@@ -380,7 +381,7 @@ typedef struct {
 
 	// Bits 3-0: Number of samples - 1 in this log entry (e.g. 0=1 sample, 15=16 samples).
 	// Bits 6-4: Data size, one of WED_LOG_ACCEL_CMP_x_BIT
-	// Bit 7: reserved
+	// Bit 7: count only. If set there is no data. All data in the count of samples was the same or within the acceptable noise level.
 	uint8 count_bits;
 
 	// For WED_LOG_ACCEL_CMP_8_BIT, the following samples are normal
@@ -405,6 +406,7 @@ static inline uint8 WEDLogAccelCmpSize(void* buf) {
 	case WED_LOG_ACCEL_CMP_5_BIT: bps = 5*3; break;
 	case WED_LOG_ACCEL_CMP_6_BIT: bps = 6*3; break;
 	case WED_LOG_ACCEL_CMP_8_BIT: bps = 8*3; break;
+	case WED_LOG_ACCEL_CMP_STILL: return 2; 
 	}
 
 	uint16 bits = ((pkt->count_bits & 0xf) + 1) * bps;
