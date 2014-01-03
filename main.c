@@ -140,6 +140,7 @@ size_t g_buflen; // Established MTU
 uint32_t g_read_logs = 0;  // Logs downloaded so far
 uint32_t g_total_logs = 0; // Total number of logs tp be downloaded
 int g_bValidAccel = 0; // If any uncompressed accel is received
+int g_decompress = 1; // If packets should be decompressed
 
 FILE * g_logFile = NULL; // file to download logs
 
@@ -700,10 +701,24 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         case WED_LOG_ACCEL_CMP:
             packet_len = WEDLogAccelCmpSize(&buf[payload]);
 
+            if (g_logFile == NULL)
+                g_logFile = log_file_open();
+
             logAccelCmp.type = log_type;
             logAccelCmp.count_bits = buf[payload + 1];
             field_count = (logAccelCmp.count_bits & 0xF) + 1;
             g_read_logs += field_count;
+            if (!g_decompress) {
+                fprintf(g_logFile, "[\"accelerometer_compressed\",[\"count_bits\",%u],[\"data\",[",logAccelCmp.count_bits);
+                for (i = 0; i < packet_len - 2; ++i) {
+                    fprintf(g_logFile, "%u", logAccelCmp.data[i]);
+                    if (i < packet_len - 3)
+                        fprintf(g_logFile, ",");
+                }
+                fprintf(g_logFile, "]]]\n");
+                break;
+            }
+
             nbits = -1;
             switch ((logAccelCmp.count_bits & 0x70) >> 4) {
             case WED_LOG_ACCEL_CMP_3_BIT:
@@ -1264,6 +1279,7 @@ void show_usage_screen(void) {
             "    Configuration file to use for given command.\n"
             "  --fwupdate file\n"
             "    Firmware image file to to use for update.\n"
+            "  --compressed Leave logs in compressed form.\n"
             "  --help         Display this usage screen\n");
     printf("amlink is Copyright Amiigo inc\n");
 }
@@ -1276,6 +1292,7 @@ static void do_command_line(int argc, char * const argv[]) {
         static struct option long_options[] = {
               { "verbose", 0, 0, 'v' },
               { "full", 0, 0, 'a' },
+              { "compressed", 0, 0, 'p'},
               { "lescan", 0, 0, 'l'  },
               { "i", 1, 0, 'i' },
               { "adapter", 1, 0, 'i' },
@@ -1311,6 +1328,10 @@ static void do_command_line(int argc, char * const argv[]) {
 
         case 'a':
             g_bFull = 1;
+            break;
+
+        case 'p':
+            g_decompress = 0;
             break;
 
         case 'i':
