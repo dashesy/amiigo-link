@@ -425,7 +425,8 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
     {
         if (fwstatus.status != WED_FWSTATUS_IDLE)
         {
-            printf("Unfinished previous update detected.\nReset CPU and try again\n");
+            printf("Unfinished previous update detected.\n"
+                   "Reset CPU and try again\n");
             return -1;
         }
     }
@@ -485,7 +486,8 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                 size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE, g_fwImageFile);
                 if (len == 0) {
                     bFinished = 1;
-                    printf("(ended)\n");
+                    if (g_bVerbose)
+                        printf("(ended)\n");
                     break;
                 }
                 if (len < WED_FW_BLOCK_SIZE) {
@@ -905,7 +907,7 @@ int discover_device() {
         handle = g_char[AMIIGO_UUID_STATUS].value_handle;
         new_state = STATE_STATUS;
         if (handle == 0) {
-            printf("No device status to proceed!\n");
+            fprintf(stderr, "No device status to proceed!\n");
             return -1; // Not ready yet
         }
         break;
@@ -1008,8 +1010,7 @@ int process_data(uint8_t * buf, ssize_t buflen) {
             }
             char str_uuid[MAX_LEN_UUID_STR + 1] = { 0 };
             bt_uuid_to_string(&uuid, str_uuid, sizeof(str_uuid));
-            printf(
-                    "handle: 0x%04x\t properties: 0x%04x\t value handle: 0x%04x\t UUID: %s \n",
+            printf("handle: 0x%04x\t properties: 0x%04x\t value handle: 0x%04x\t UUID: %s \n",
                     handle, properties, value_handle, str_uuid);
         } // end for(i = 0
 
@@ -1570,7 +1571,8 @@ int main(int argc, char **argv) {
             double diff = difftime(stop_time, start_time);
             // Keep-alive by readin status every 60s
             if (diff > 60) {
-                printf(" (Keep alive)\n");
+                if (g_bVerbose)
+                    printf(" (Keep alive)\n");
                 start_time = stop_time;
                 exec_read(g_char[AMIIGO_UUID_STATUS].value_handle);
             }
