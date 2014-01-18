@@ -151,6 +151,8 @@ uint32_t g_fwImageWrittenSize = 0; // bytes transmitted
 uint16_t g_fwImagePage = 0; // Firmwate image total pages
 uint16_t g_fwImageWrittenPage = 0; // pages transmitted
 
+int g_bVerbose = 0; // verbose output
+
 // Downloaded file
 char g_szFullName[1024] = { 0 };
 
@@ -1323,7 +1325,7 @@ static void do_command_line(int argc, char * const argv[]) {
             break;
 
         case 'v':
-            // TODO: implement
+            g_bVerbose = 1;
             break;
 
         case 'a':
@@ -1446,10 +1448,16 @@ int main(int argc, char **argv) {
     }
 
     if (g_src != NULL) {
-        if (!strncmp(g_src, "hci", 3))
+        if (!strncmp(g_src, "hci", 3)) {
             ret = hci_devba(atoi(g_src + 3), &opts.src);
-        else
+            if (ret == 0 && g_bVerbose) {
+                char addr[18];
+                ba2str(&opts.src, addr);
+                printf("Source address: %s\n", addr);
+            }
+        } else {
             ret = str2ba(g_src, &opts.src);
+        }
         if (ret) {
             fprintf(stderr,
                     "Invalid interface (use --help to find the usage)!\n");
