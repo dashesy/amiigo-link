@@ -715,7 +715,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             if (!g_decompress) {
                 fprintf(g_logFile, "[\"accelerometer_compressed\",[\"count_bits\",%u],[\"data\",[",logAccelCmp.count_bits);
                 for (i = 0; i < packet_len - 2; ++i) {
-                    fprintf(g_logFile, "%u", logAccelCmp.data[i]);
+                    fprintf(g_logFile, "%u", buf[payload + 2 + i]);
                     if (i < packet_len - 3)
                         fprintf(g_logFile, ",");
                 }
