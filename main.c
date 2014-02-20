@@ -141,6 +141,7 @@ uint32_t g_read_logs = 0;  // Logs downloaded so far
 uint32_t g_total_logs = 0; // Total number of logs tp be downloaded
 int g_bValidAccel = 0; // If any uncompressed accel is received
 int g_decompress = 1; // If packets should be decompressed
+int g_raw = 0; // If should download raw logs (no compression)
 
 FILE * g_logFile = NULL; // file to download logs
 
@@ -285,7 +286,11 @@ int exec_download() {
     WEDConfig config;
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_LOG;
-    config.log.flags = WED_CONFIG_LOG_DL_EN | WED_CONFIG_LOG_CMP_EN;
+    if (g_raw)
+        config.log.flags = WED_CONFIG_LOG_DL_EN;
+    else
+        config.log.flags = WED_CONFIG_LOG_DL_EN | WED_CONFIG_LOG_CMP_EN;
+
 
     int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
     if (ret)
@@ -1283,6 +1288,7 @@ void show_usage_screen(void) {
             "  --fwupdate file\n"
             "    Firmware image file to to use for update.\n"
             "  --compressed Leave logs in compressed form.\n"
+            "  --raw Download logs in raw format (no compression).\n"
             "  --help         Display this usage screen\n");
     printf("amlink is Copyright Amiigo inc\n");
 }
@@ -1296,6 +1302,7 @@ static void do_command_line(int argc, char * const argv[]) {
               { "verbose", 0, 0, 'v' },
               { "full", 0, 0, 'a' },
               { "compressed", 0, 0, 'p'},
+              { "raw", 0, 0, 'r'},
               { "lescan", 0, 0, 'l'  },
               { "i", 1, 0, 'i' },
               { "adapter", 1, 0, 'i' },
@@ -1335,6 +1342,10 @@ static void do_command_line(int argc, char * const argv[]) {
 
         case 'p':
             g_decompress = 0;
+            break;
+
+        case 'r':
+            g_raw = 1;
             break;
 
         case 'i':

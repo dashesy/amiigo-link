@@ -58,6 +58,7 @@ all: prepare ./$(OUTPUTBIN)
 
 install:
 	@cp ./$(OUTPUTBIN) /usr/bin/$(OUTPUTBIN)
+	chmod +s /usr/bin/$(OUTPUTBIN)
 
 .PHONY: prepare
 prepare:
