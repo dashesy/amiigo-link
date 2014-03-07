@@ -13,6 +13,7 @@
 #include <getopt.h>
 #include <time.h>
 #include <ctype.h>
+#include <string.h>
 
 #include "jni/bluetooth.h"
 #include "jni/l2cap.h"
@@ -112,11 +113,15 @@ enum AMIIGO_CMD {
     AMIIGO_CMD_CONFIGLS,      // Configure light sensors
     AMIIGO_CMD_CONFIGACCEL,   // Configure acceleration sensors
     AMIIGO_CMD_BLINK,         // Configure a single blink
+    AMIIGO_CMD_I2C_READ,      // Read i2c address and register
+    AMIIGO_CMD_I2C_WRITE,     // Write to i2c address and register
 } g_cmd = AMIIGO_CMD_NONE;
 
 WEDVersion g_ver; // Firmware version
 unsigned int g_flat_ver = 0; // Flat version number to compare
 #define FW_VERSION(Major, Minor, Build) (Major * 100000u + Minor * 1000u + Build)
+
+WEDDebugI2CCmd g_i2c; // i2c debugging
 
 WEDConfigLS g_config_ls; // Light configuration
 WEDConfigAccel g_config_accel; // Acceleration sensors configuration
@@ -165,6 +170,7 @@ enum DISCOVERY_STATE {
     STATE_DOWNLOAD,
     STATE_FWSTATUS,
     STATE_FWSTATUS_WAIT,
+    STATE_I2C,
 
     STATE_COUNT, // This must be the last
 } g_state = STATE_NONE;
@@ -262,6 +268,26 @@ int exec_fwupdate() {
     printf("\nPreparing for update ...\n");
 
     // Now read for status
+    ret = exec_read(handle);
+
+    return ret;
+}
+
+// Debug i2c by reading or writing register on given address
+int exec_debug_i2c() {
+    int ret;
+    g_state = STATE_I2C;
+
+    uint16_t handle = g_char[AMIIGO_UUID_DEBUG].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    ret = exec_write(handle, (uint8_t *) &g_i2c, sizeof(g_i2c));
+    if (ret)
+        return -1;
+
+    // Wait for it a little
+    usleep(100);
     ret = exec_read(handle);
 
     return ret;
@@ -852,6 +878,10 @@ int process_command() {
     case AMIIGO_CMD_FWUPDATE:
         return exec_fwupdate();
         break;
+    case AMIIGO_CMD_I2C_READ:
+    case AMIIGO_CMD_I2C_WRITE:
+        return exec_debug_i2c();
+        break;
     default:
         return 0;
         break;
@@ -960,6 +990,24 @@ int process_status(uint8_t * buf, ssize_t buflen) {
     return 0;
 }
 
+// i2c result
+int process_debug_i2c(uint8_t * buf, ssize_t buflen) {
+    if (buflen < sizeof(WEDDebugI2CResult) + 1)
+        return -1;
+    uint8_t * pdu = &buf[1];
+    WEDDebugI2CResult i2c_res;
+    i2c_res.status = att_get_u8(&pdu[0]);
+    i2c_res.data = att_get_u8(&pdu[1]);
+
+    if (i2c_res.status) {
+        printf("failed (%d)\n", i2c_res.status);
+        return 0;
+    }
+    printf(" %x\n", i2c_res.data);
+
+    return 0;
+}
+
 // Process incoming raw data
 int process_data(uint8_t * buf, ssize_t buflen) {
     int ret = 0;
@@ -1061,6 +1109,10 @@ int process_data(uint8_t * buf, ssize_t buflen) {
             // Act upon new firmware update status
             ret = process_fwstatus(buf, buflen);
             break;
+        case STATE_I2C:
+            // i2c result
+            ret = process_debug_i2c(buf, buflen);
+            break;
         default:
             dump_buffer(buf, buflen);
             break;
@@ -1150,6 +1202,59 @@ int set_update_file(const char * szName) {
     fseek(g_fwImageFile, 0, SEEK_SET);
 
     g_cmd = AMIIGO_CMD_FWUPDATE;
+    return 0;
+}
+
+int set_i2c_write(const char * szArg) {
+
+    char * str = strdup(szArg);
+    char * pch;
+    pch = strtok (str, ":");
+    int arg_count = 0;
+    while (pch != NULL) {
+        arg_count++;
+        if (arg_count == 1)
+            g_i2c.address = (uint8)atoi(pch);
+        else if (arg_count == 2) {
+            g_i2c.reg = (uint8)atoi(pch);
+        } else if (arg_count == 3) {
+            g_i2c.data = (uint8)atoi(pch);
+        } else {
+            break;
+        }
+        pch = strtok (NULL, ":");
+    }
+    if (arg_count != 3) {
+        printf("Invalid i2c address:reg:value format");
+        return -1;
+    }
+    g_i2c.write = 1;
+    g_cmd = AMIIGO_CMD_I2C_WRITE;
+    return 0;
+}
+
+int set_i2c_read(const char * szArg) {
+    char * str = strdup(szArg);
+    char * pch;
+    pch = strtok (str, ":");
+    int arg_count = 0;
+    while (pch != NULL) {
+        arg_count++;
+        if (arg_count == 1) {
+            g_i2c.address = (uint8)atoi(pch);
+        } else if (arg_count == 2) {
+            g_i2c.reg = (uint8)atoi(pch);
+        } else {
+            break;
+        }
+        pch = strtok (NULL, ":");
+    }
+    if (arg_count != 2) {
+        printf("Invalid i2c address:reg format");
+        return -1;
+    }
+    g_i2c.write = 0;
+    g_cmd = AMIIGO_CMD_I2C_READ;
     return 0;
 }
 
@@ -1287,6 +1392,10 @@ void show_usage_screen(void) {
             "    Configuration file to use for given command.\n"
             "  --fwupdate file\n"
             "    Firmware image file to to use for update.\n"
+            "  --i2c_read address:reg\n"
+            "    Read i2c address and register (debugging only).\n"
+            "  --i2c_write address:reg:value\n"
+            "    Write value to i2c address and register (debugging only).\n"
             "  --compressed Leave logs in compressed form.\n"
             "  --raw Download logs in raw format (no compression).\n"
             "  --help         Display this usage screen\n");
@@ -1311,6 +1420,8 @@ static void do_command_line(int argc, char * const argv[]) {
               { "c", 1, 0, 'x' },
               { "command", 1, 0, 'x' },
               { "input", 1, 0, 'f' },
+              { "i2c_read", 1, 0, 'd'},
+              { "i2c_write", 1, 0, 'w'},
               { "fwupdate", 1, 0, 'u' },
               { "help", 0, 0, '?' },
               { 0, 0, 0, 0 } };
@@ -1373,6 +1484,16 @@ static void do_command_line(int argc, char * const argv[]) {
                 exit(1);
             break;
 
+        case 'd':
+            if (set_i2c_read(optarg))
+                exit(1);
+            break;
+
+        case 'w':
+            if (set_i2c_write(optarg))
+                exit(1);
+            break;
+
         case '?':
             show_usage_screen();
             exit(0);
@@ -1430,6 +1551,8 @@ int main(int argc, char **argv) {
     memset(&g_logAccel, 0, sizeof(g_logAccel));
     memset(&g_logLSConfig, 0, sizeof(g_logLSConfig));
     memset(&g_ver, 0, sizeof(g_ver));
+
+    memset(&g_i2c, 0, sizeof(g_i2c));
 
     // Some defulats
     g_maint_led.duration = 5;
