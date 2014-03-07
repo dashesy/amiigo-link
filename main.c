@@ -318,6 +318,8 @@ int exec_download() {
         config.log.flags = WED_CONFIG_LOG_DL_EN;
     else
         config.log.flags = WED_CONFIG_LOG_DL_EN | WED_CONFIG_LOG_CMP_EN;
+    if (g_live)
+        config.log.flags |= WED_CONFIG_LOG_LOOPBACK;
 
 
     int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
