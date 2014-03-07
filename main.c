@@ -158,6 +158,8 @@ uint16_t g_fwImagePage = 0; // Firmwate image total pages
 uint16_t g_fwImageWrittenPage = 0; // pages transmitted
 
 int g_bVerbose = 0; // verbose output
+int g_live = 0; // if live output is needed
+int g_console = 0; // if should print accel to console
 
 // Downloaded file
 char g_szFullName[1024] = { 0 };
@@ -644,6 +646,12 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 g_logAccel.accel[i] = buf[payload + 1 + i];
             fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
                     g_logAccel.accel[1], g_logAccel.accel[2]);
+            if (g_console) {
+                printf("[\"accelerometer\",[%02d,%02d,%02d]]\n", g_logAccel.accel[0],
+                        g_logAccel.accel[1], g_logAccel.accel[2]);
+                fflush(stdout);
+
+            }
             break;
         case WED_LOG_LS_CONFIG:
             packet_len = sizeof(g_logLSConfig);
@@ -797,6 +805,11 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 while (field_count--) {
                     fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
                             g_logAccel.accel[1], g_logAccel.accel[2]);
+                    if (g_console) {
+                        printf("[\"accelerometer\",[%02d,%02d,%02d]]\n", g_logAccel.accel[0],
+                                g_logAccel.accel[1], g_logAccel.accel[2]);
+                        fflush(stdout);
+                    }
                 }
                 break;
             }
@@ -810,6 +823,12 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                     pdu += 3;
                     fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
                             g_logAccel.accel[1], g_logAccel.accel[2]);
+                    if (g_console) {
+                        printf("[\"accelerometer\",[%02d,%02d,%02d]]\n", g_logAccel.accel[0],
+                                g_logAccel.accel[1], g_logAccel.accel[2]);
+                        fflush(stdout);
+
+                    }
                 }
             } else {
                 GetBits gb;
@@ -822,6 +841,12 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                     }
                     fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
                             g_logAccel.accel[1], g_logAccel.accel[2]);
+                    if (g_console) {
+                        printf("[\"accelerometer\",[%02d,%02d,%02d]]\n", g_logAccel.accel[0],
+                                g_logAccel.accel[1], g_logAccel.accel[2]);
+                        fflush(stdout);
+
+                    }
                 }
             }
 
@@ -844,14 +869,17 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             log_type = buf[payload] & 0x0F;
     } // end while (payload < buflen
 
-    printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_read_logs,
-            g_total_logs, (100.0 * g_read_logs) / g_total_logs);
-    fflush(stdout);
-    if (g_read_logs >= g_total_logs || g_status.num_log_entries == 0)
-    {
-        printf("\n%s", g_szFullName);
-        g_state = STATE_COUNT; // Done with command
+    if (!g_live) {
+        printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_read_logs,
+                g_total_logs, (100.0 * g_read_logs) / g_total_logs);
+        if (g_read_logs >= g_total_logs || g_status.num_log_entries == 0)
+        {
+            printf("\n%s", g_szFullName);
+            g_state = STATE_COUNT; // Done with command
+        }
+        fflush(stdout);
     }
+
     return 0;
 }
 
@@ -1376,7 +1404,7 @@ void show_usage_screen(void) {
             "    Can specify a UUID\n"
             "    Example: --b 90:59:AF:04:32:82\n"
             "    Use --lescan to find the UUID list\n"
-            "  --lescan, -l \n"
+            "  --lescan \n"
             "    Low energy scan (needs root priviledge)\n"
             "  --command cmd \n"
             "    Command to execute:\n"
@@ -1390,6 +1418,10 @@ void show_usage_screen(void) {
             "       resetconfigs: set all configs to default\n"
             "  --input file\n"
             "    Configuration file to use for given command.\n"
+            "  -l, --live Live download as a stream.\n"
+            "    Hit `q` to end the stream.\n"
+            "  --print\n"
+            "    Print accelerometer to console as well as the log file.\n"
             "  --fwupdate file\n"
             "    Firmware image file to to use for update.\n"
             "  --i2c_read address:reg\n"
@@ -1399,7 +1431,7 @@ void show_usage_screen(void) {
             "  --compressed Leave logs in compressed form.\n"
             "  --raw Download logs in raw format (no compression).\n"
             "  --help         Display this usage screen\n");
-    printf("amlink is Copyright Amiigo inc\n");
+    printf("\namlink is Copyright Amiigo inc\n");
 }
 
 static void do_command_line(int argc, char * const argv[]) {
@@ -1409,10 +1441,11 @@ static void do_command_line(int argc, char * const argv[]) {
         int option_index = 0;
         static struct option long_options[] = {
               { "verbose", 0, 0, 'v' },
+              { "live", 0, 0, 'l' },
               { "full", 0, 0, 'a' },
               { "compressed", 0, 0, 'p'},
               { "raw", 0, 0, 'r'},
-              { "lescan", 0, 0, 'l'  },
+              { "lescan", 0, 0, 's'  },
               { "i", 1, 0, 'i' },
               { "adapter", 1, 0, 'i' },
               { "b", 1, 0, 'b' },
@@ -1420,6 +1453,7 @@ static void do_command_line(int argc, char * const argv[]) {
               { "c", 1, 0, 'x' },
               { "command", 1, 0, 'x' },
               { "input", 1, 0, 'f' },
+              { "print", 0, 0, 'o' },
               { "i2c_read", 1, 0, 'd'},
               { "i2c_write", 1, 0, 'w'},
               { "fwupdate", 1, 0, 'u' },
@@ -1438,9 +1472,17 @@ static void do_command_line(int argc, char * const argv[]) {
             printf("unsupported\n");
             break;
 
-        case 'l':
+        case 's':
             do_lescan();
             exit(0);
+            break;
+
+        case 'o':
+            g_console = 1;
+            break;
+
+        case 'l':
+            g_live = 1;
             break;
 
         case 'v':
@@ -1710,7 +1752,7 @@ int main(int argc, char **argv) {
                 start_time = stop_time;
                 exec_read(g_char[AMIIGO_UUID_STATUS].value_handle);
             }
-            if (g_state == STATE_DOWNLOAD) {
+            if (g_state == STATE_DOWNLOAD && !g_live) {
                 diff = difftime(stop_time, download_time);
                 // Download timeout reached
                 if (diff > 2)
