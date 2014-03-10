@@ -7,6 +7,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <termios.h>
@@ -15,22 +16,18 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "jni/bluetooth.h"
-#include "jni/hci.h"
-#include "jni/hci_lib.h"
 #if 0
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 #endif
 
-#include "btio.h"
-#include "att.h"
-#include "hcitool.h"
 #include "amidefs.h"
 #include "amdev.h"
-
+#include "hcitool.h"
+#include "common.h"
 #include "gapproto.h"
+#include "amproto.h"
 #include "amlprocess.h"
 #include "cmdparse.h"
 
@@ -39,16 +36,6 @@
 // Device and interface to use
 char g_dst[512] = "";
 char g_src[512] = "hci0";
-
-// Firmware build and version information
-char g_szBuild[512] = "Unknown";
-char g_szVersion[512] = "Unknown";
-
-// Optional all-inclusive handles
-#define OPT_START_HANDLE 0x0001
-#define OPT_END_HANDLE   0xffff
-
-AMIIGO_CMD g_cmd = AMIIGO_CMD_NONE;
 
 // Amiigo devices to interact with
 amdev_t devices[2];
@@ -68,57 +55,51 @@ uint32_t g_fwImageWrittenSize = 0; // bytes transmitted
 uint16_t g_fwImagePage = 0; // Firmwate image total pages
 uint16_t g_fwImageWrittenPage = 0; // pages transmitted
 
-//-------- flags -----------
-int g_leave_compressed = 0; // If packets should be left in compressed form
-int g_raw = 0; // If should download logs in raw format (no compression in firmware)
-int g_verbosity = 0; // verbose output
-int g_live = 0; // if live output is needed
-int g_console = 0; // if should print accel to console
-int g_bFull = 0; // If full characteristcs should be discovered
-
-// Downloaded file
-char g_szFullName[1024] = { 0 };
+aml_options_t g_opt; // flags option
 
 // Execute the requested command
-int exec_command(int sock) {
+int exec_command(amdev_t * dev) {
     switch (g_cmd) {
+    case AMIIGO_CMD_NONE:
+        dev->state = STATE_COUNT; // Done with command
+        break;
     case AMIIGO_CMD_DOWNLOAD:
-        if (g_status.num_log_entries == 0 && !g_live) {
+        if (dev->status.num_log_entries == 0 && !g_opt.live) {
             // Nothing to download!
-            g_state = STATE_COUNT; // Done with command
+            dev->state = STATE_COUNT; // Done with command
             return 0;
         }
 
-        g_state = STATE_DOWNLOAD; // Download in progress
-        g_total_logs = g_status.num_log_entries; // How many logs to download
-        return exec_download(sock);
+        dev->state = STATE_DOWNLOAD; // Download in progress
+        dev->total_logs = dev->status.num_log_entries; // How many logs to download
+        return exec_download(dev->sock);
         break;
     case AMIIGO_CMD_CONFIGLS:
-        g_state = STATE_COUNT; // Done with command
-        return exec_configls(sock);
+        dev->state = STATE_COUNT; // Done with command
+        return exec_configls(dev->sock);
         break;
     case AMIIGO_CMD_CONFIGACCEL:
-        g_state = STATE_COUNT; // Done with command
-        return exec_configaccel(sock);
+        dev->state = STATE_COUNT; // Done with command
+        return exec_configaccel(dev->sock);
         break;
     case AMIIGO_CMD_BLINK:
-        g_state = STATE_COUNT; // Done with command
-        return exec_blink(sock);
+        dev->state = STATE_COUNT; // Done with command
+        return exec_blink(dev->sock);
         break;
     case AMIIGO_CMD_RESET_CPU:
     case AMIIGO_CMD_RESET_LOGS:
     case AMIIGO_CMD_RESET_CONFIGS:
-        g_state = STATE_COUNT; // Done with command
-        return exec_reset(sock, g_cmd);
+        dev->state = STATE_COUNT; // Done with command
+        return exec_reset(dev->sock, g_cmd);
         break;
     case AMIIGO_CMD_FWUPDATE:
-        g_state = STATE_FWSTATUS;
-        return exec_fwupdate(sock);
+        dev->state = STATE_FWSTATUS;
+        return exec_fwupdate(dev->sock);
         break;
     case AMIIGO_CMD_I2C_READ:
     case AMIIGO_CMD_I2C_WRITE:
-        g_state = STATE_I2C;
-        return exec_debug_i2c(sock);
+        dev->state = STATE_I2C;
+        return exec_debug_i2c(dev->sock);
         break;
     default:
         return 0;
@@ -258,46 +239,46 @@ static void do_command_line(int argc, char * const argv[]) {
             break;
 
         case 'o':
-            g_console = 1;
+            g_opt.console = 1;
             break;
 
         case 'l':
-            g_live = 1;
+            g_opt.live = 1;
             break;
 
         case 'v':
-            g_verbosity = 1;
+            g_opt.verbosity = 1;
             break;
 
         case 'a':
-            g_bFull = 1;
+            g_opt.full = 1;
             break;
 
         case 'p':
-            g_leave_compressed = 1;
+            g_opt.leave_compressed = 1;
             break;
 
         case 'r':
-            g_raw = 1;
+            g_opt.raw = 1;
             break;
 
         case 'i':
-            if (set_adapter(optarg))
+            if (parse_adapter(optarg))
                 exit(1);
             break;
 
         case 'b':
-            if (set_device(optarg))
+            if (parse_device(optarg))
                 exit(1);
             break;
 
         case 'x':
-            if (set_command(optarg))
+            if (parse_command(optarg))
                 exit(1);
             break;
 
         case 'f':
-            if (set_input_file(optarg))
+            if (parse_input_file(optarg))
                 exit(1);
             break;
 
@@ -307,12 +288,12 @@ static void do_command_line(int argc, char * const argv[]) {
             break;
 
         case 'd':
-            if (set_i2c_read(optarg))
+            if (parse_i2c_read(optarg))
                 exit(1);
             break;
 
         case 'w':
-            if (set_i2c_write(optarg))
+            if (parse_i2c_write(optarg))
                 exit(1);
             break;
 
@@ -372,52 +353,56 @@ int main(int argc, char **argv) {
     memset(&devices[0], 0, sizeof(devices));
 
 
-    // Initialize the processing logic
-    init_process();
+    // Initialize the characteristics
+    char_init();
 
     // Set parameters based on command line
     do_command_line(argc, argv);
 
-    int sock; // Link socket(s)
+    {
+        amdev_t * dev = &devices[0];
+        // Connect to all devices
+        dev->sock = gap_connect(g_src, g_dst);
 
-    // Connect to all devices
-    sock = gap_connect(g_src, g_dst);
-
-
-    if (g_bFull) {
-        // Start by discovering Amiigo handles
-        ret = discover_handles(OPT_START_HANDLE, OPT_END_HANDLE);
-        if (ret) {
-            fprintf(stderr, "discover_handles() error\n");
-            return -1;
-        }
-    } else {
-        // Use default handles and discover the device
-        ret = discover_device();
-        if (ret) {
-            fprintf(stderr, "discover_device() error\n");
-            return -1;
+        if (g_opt.full) {
+            // Start by discovering Amiigo handles
+            ret = discover_handles(dev->sock, OPT_START_HANDLE, OPT_END_HANDLE);
+            if (ret) {
+                fprintf(stderr, "discover_handles() error\n");
+                return -1;
+            }
+        } else {
+            // Use default handles and discover the device
+            ret = discover_device(dev);
+            if (ret) {
+                fprintf(stderr, "discover_device() error\n");
+                return -1;
+            }
         }
     }
+
+
 
     start_time = time(NULL);
     stop_time = start_time;
     download_time = start_time;
 
     for (;;) {
+        amdev_t * dev = &devices[0];
+
         // No need to keep-alive during firmware update
-        if (g_state != STATE_FWSTATUS_WAIT) {
+        if (dev->state != STATE_FWSTATUS_WAIT) {
             stop_time = time(NULL);
             double diff = difftime(stop_time, start_time);
             // Keep-alive by reading status every 60s
             if (diff > 60) {
-                if (g_verbosity)
+                if (g_opt.verbosity)
                     printf(" (Keep alive)\n");
                 start_time = stop_time;
                 // Read the status to keep conection alive
-                exec_status();
+                exec_status(dev->sock);
             }
-            if (g_state == STATE_DOWNLOAD && !g_live) {
+            if (dev->state == STATE_DOWNLOAD && !g_opt.live) {
                 diff = difftime(stop_time, download_time);
                 // Download timeout reached
                 if (diff > 2)
@@ -429,7 +414,7 @@ int main(int argc, char **argv) {
         }
 
         uint8_t buf[1024] = {0};
-        int len = gap_recv(sock, &buf[0], sizeof(buf));
+        int len = gap_recv(dev->sock, &buf[0], sizeof(buf));
         if (len < 0)
             break;
         if (len == 0)
@@ -437,12 +422,22 @@ int main(int argc, char **argv) {
 
         download_time = stop_time;
         // Process incoming data
-        ret = process_data(sock, buf, len);
+        ret = process_data(dev, buf, len);
         if (ret) {
             fprintf(stderr, "main process_data() error\n");
             break;
         }
-        if (g_state == STATE_COUNT)
+        if (dev->state == STATE_COUNT)
+            break; // Done the the command
+
+        // If all devices have their status read, execute the requested command
+        if (dev->status.battery_level > 0) {
+            // Now that we have status (e.g. number of logs)
+            //  Start execution of the requested command
+            ret = exec_command(dev);
+        }
+
+        if (dev->state == STATE_COUNT)
             break; // Done the the command
 
         // See if user ended the run
@@ -450,14 +445,17 @@ int main(int argc, char **argv) {
             break;
     } //end for(;;
 
-    // Reset CPU if need to exit in the middle of firmware update
-    if (g_state == STATE_FWSTATUS_WAIT)
-        exec_reset(sock, AMIIGO_CMD_RESET_CPU);
+    {
+        amdev_t * dev = &devices[0];
+        // Reset CPU if need to exit in the middle of firmware update
+        if (dev->state == STATE_FWSTATUS_WAIT)
+            exec_reset(dev->sock, AMIIGO_CMD_RESET_CPU);
 
-    printf("\n");
+        printf("\n");
 
-    // Close the socket
-    gap_shutdown(g_sock);
+        // Close the socket
+        gap_shutdown(dev->sock);
+    }
 
     // Close log files
     if (g_logFile != NULL)
