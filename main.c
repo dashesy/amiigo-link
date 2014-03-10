@@ -26,8 +26,7 @@
 #include "amlprocess.h"
 #include "amchar.h"
 #include "cmdparse.h"
-
-#define FWUP_HDR_ID 0x0101
+#include "fwupdate.h"
 
 // Device and interface to use
 char g_dst[512] = "";
@@ -43,12 +42,6 @@ WEDMaintLED g_maint_led; // Blink command
 
 
 FILE * g_logFile = NULL; // file to download logs
-
-FILE * g_fwImageFile = NULL; // Firmware image file
-uint32_t g_fwImageSize = 0; // Firmware image size in bytes
-uint32_t g_fwImageWrittenSize = 0; // bytes transmitted
-uint16_t g_fwImagePage = 0; // Firmwate image total pages
-uint16_t g_fwImageWrittenPage = 0; // pages transmitted
 
 aml_options_t g_opt; // flags option
 
@@ -102,49 +95,6 @@ int exec_command(amdev_t * dev) {
     }
     return 0;
 }
-
-int set_update_file(const char * szName) {
-    g_fwImageFile = fopen(szName, "r");
-    if (g_fwImageFile == NULL) {
-        fprintf(stderr, "Firmware image file (%s) not accessible!\n", szName);
-        return -1;
-    }
-    fseek(g_fwImageFile, 0, SEEK_END);
-    g_fwImageSize = ftell(g_fwImageFile);
-    fseek(g_fwImageFile, 0, SEEK_SET);
-    if (g_fwImageSize < WED_FW_HEADER_SIZE) {
-        fprintf(stderr, "Firmware image file (%s) too small!\n", szName);
-        return -1;
-    }
-    WEDFirmwareCommand fwcmd;
-    memset(&fwcmd, 0, sizeof(fwcmd));
-    fwcmd.pkt_type = WED_FIRMWARE_INIT;
-    fread(fwcmd.header, WED_FW_HEADER_SIZE, 1, g_fwImageFile);
-
-    uint16_t * hdr = (uint16_t *) &fwcmd.header[0];
-    // TODO: check CRC
-    //uint16_t fw_crc = hdr[0];
-    uint16_t fw_id = hdr[1];
-    g_fwImagePage = hdr[2];
-
-    if (fw_id != FWUP_HDR_ID) {
-        fprintf(stderr, "Firmware image (%s) invalid!\n", szName);
-        return -1;
-    }
-
-    if (WED_FW_BLOCK_SIZE * WED_FW_STREAM_BLOCKS * g_fwImagePage != g_fwImageSize) {
-        fprintf(stderr, "Firmware image (%s) invalid size!\n", szName);
-        return -1;
-    }
-
-    g_fwImageWrittenSize = 0;
-    g_fwImageWrittenPage = 0;
-    fseek(g_fwImageFile, 0, SEEK_SET);
-
-    g_cmd = AMIIGO_CMD_FWUPDATE;
-    return 0;
-}
-
 
 void show_usage_screen(void) {
     printf("Amiigo Link command line utility.\n");
@@ -457,12 +407,6 @@ int main(int argc, char **argv) {
     {
         fclose(g_logFile);
         g_logFile = NULL;
-    }
-
-    // Close fw iamge file
-    if (g_fwImageFile != NULL) {
-        fclose(g_fwImageFile);
-        g_fwImageFile = NULL;
     }
 
     return 0;

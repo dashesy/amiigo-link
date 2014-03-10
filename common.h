@@ -8,6 +8,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define FW_VERSION(Major, Minor, Build) (Major * 100000u + Minor * 1000u + Build)
+
 typedef struct _aml_options {
     int leave_compressed; // If packets should be left in compressed form
     int raw;              // If should download logs in raw format (no compression in firmware)

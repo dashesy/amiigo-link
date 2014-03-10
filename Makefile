@@ -49,6 +49,8 @@ COMMON_SRC := ./main.c \
               ./amlprocess.c \
               ./amproto.c \
               ./cmdparse.c \
+              ./amchar.c \
+              ./fwupdate.c \
               
 # Avoid the need to latest BlueZ
 COMMON_SRC += jni/bluetooth.c\
