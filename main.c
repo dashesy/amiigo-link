@@ -286,10 +286,12 @@ int main(int argc, char **argv) {
     do_command_line(argc, argv);
 
     for (i = 0; i < g_cfg.count_dst; ++i) {
-        amdev_t * dev = &devices[0];
+        amdev_t * dev = &devices[i];
         // Connect to all devices
         dev->sock = gap_connect(g_src, g_cfg.dst[i]);
-
+        if (dev->sock < 0) {
+            return -1;
+        }
         if (g_opt.full) {
             // Start by discovering Amiigo handles
             ret = discover_handles(dev->sock, OPT_START_HANDLE, OPT_END_HANDLE);
@@ -312,6 +314,10 @@ int main(int argc, char **argv) {
     download_time = start_time;
 
     for (;;) {
+        // See if user ended the run
+        if (kbhit() == 'q')
+            break;
+
         amdev_t * dev = &devices[0];
 
         // No need to keep-alive during firmware update
@@ -364,13 +370,10 @@ int main(int argc, char **argv) {
         if (dev->state == STATE_COUNT)
             break; // Done the the command
 
-        // See if user ended the run
-        if (kbhit() == 'q')
-            break;
     } //end for(;;
 
-    {
-        amdev_t * dev = &devices[0];
+    for (i = 0; i < g_cfg.count_dst; ++i) {
+        amdev_t * dev = &devices[i];
         // Reset CPU if need to exit in the middle of firmware update
         if (dev->state == STATE_FWSTATUS_WAIT)
             exec_reset(dev->sock, AMIIGO_CMD_RESET_CPU);

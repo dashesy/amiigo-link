@@ -87,7 +87,7 @@ int parse_device(const char * szName) {
     int dev_count = 0;
     while (pch != NULL) {
         if (dev_count >= MAX_DEV_COUNT) {
-            fprintf(stderr, "Maximum of %d devices can be connected to", MAX_DEV_COUNT);
+            fprintf(stderr, "Maximum of %d devices can be connected to\n", MAX_DEV_COUNT);
             return -1;
         }
         g_cfg.dst[dev_count] = pch;

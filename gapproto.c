@@ -220,8 +220,8 @@ int gap_connect(const char * src, const char * dst) {
     g_buflen = (opts.cid == ATT_CID) ? ATT_DEFAULT_LE_MTU : opts.imtu;
 
     printf("Session started ('q' to quit):\n\t"
-            " SRC: %s OMTU: %d IMTU %d CID %d\n\n", src, opts.omtu, opts.imtu,
-            opts.cid);
+            " SRC: %s OMTU: %d IMTU: %d CID: %d DST: %s\n\n", src, opts.omtu, opts.imtu,
+            opts.cid, dst);
 
     return sock;
 }
