@@ -16,11 +16,6 @@
 #include <ctype.h>
 #include <string.h>
 
-#if 0
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/hci.h>
-#include <bluetooth/hci_lib.h>
-#endif
 
 #include "amidefs.h"
 #include "amdev.h"
