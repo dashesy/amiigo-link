@@ -28,69 +28,13 @@
 #include "att.h"
 #include "hcitool.h"
 #include "amidefs.h"
+#include "amdev.h"
 
 #include "gapproto.h"
-#include "amprocess.h"
+#include "amlprocess.h"
+#include "cmdparse.h"
 
 #define FWUP_HDR_ID 0x0101
-
-/******************************************************************************/
-typedef struct {
-    uint8* buf;
-    uint8 pos;
-} GetBits;
-/******************************************************************************/
-static inline void cmpGetBitsInit(GetBits* gb, void* buf) {
-
-    gb->buf = buf;
-    gb->pos = 0;
-}
-/******************************************************************************/
-static int8 cmpGetBits(GetBits* gb, uint8 nbits) {
-
-    int8 val = gb->buf[0] << gb->pos;
-
-    uint8 buf0bits = 8 - gb->pos;
-    if (buf0bits < nbits)
-        val |= gb->buf[1] >> buf0bits;
-
-    gb->pos += nbits;
-    if (gb->pos >= 8) {
-        gb->buf++;
-        gb->pos -= 8;
-    }
-
-    return val >> (8 - nbits);
-}
-
-enum {
-    STD_UUID_CCC = 0,
-    AMIIGO_UUID_SERVICE,
-    AMIIGO_UUID_STATUS,
-    AMIIGO_UUID_CONFIG,
-    AMIIGO_UUID_LOGBLOCK,
-    AMIIGO_UUID_FIRMWARE,
-    AMIIGO_UUID_DEBUG,
-    AMIIGO_UUID_BUILD,
-    AMIIGO_UUID_VERSION,
-
-    AMIIGO_UUID_COUNT // This must be the last
-};
-
-struct gatt_char g_char[AMIIGO_UUID_COUNT];
-
-// Client configuration (for notification and indication)
-const char * g_szUUID[] = {
-    "00002902-0000-1000-8000-00805f9b34fb",
-    "cca31000-78c6-4785-9e45-0887d451317c",
-    "cca30001-78c6-4785-9e45-0887d451317c",
-    "cca30002-78c6-4785-9e45-0887d451317c",
-    "cca30003-78c6-4785-9e45-0887d451317c",
-    "cca30004-78c6-4785-9e45-0887d451317c",
-    "cca30005-78c6-4785-9e45-0887d451317c",
-    "cca30006-78c6-4785-9e45-0887d451317c",
-    "cca30007-78c6-4785-9e45-0887d451317c",
-};
 
 // Device and interface to use
 char g_dst[512] = "";
@@ -104,107 +48,66 @@ char g_szVersion[512] = "Unknown";
 #define OPT_START_HANDLE 0x0001
 #define OPT_END_HANDLE   0xffff
 
-enum AMIIGO_CMD {
-    AMIIGO_CMD_NONE = 0,      // Just to do a connection status test
-    AMIIGO_CMD_FWUPDATE,      // Firmware update
-    AMIIGO_CMD_RESET_LOGS,    // Reset log buffer
-    AMIIGO_CMD_RESET_CPU,     // Reset CPU
-    AMIIGO_CMD_RESET_CONFIGS, // Reset configurations to default
-    AMIIGO_CMD_DOWNLOAD,      // Download all the logs
-    AMIIGO_CMD_CONFIGLS,      // Configure light sensors
-    AMIIGO_CMD_CONFIGACCEL,   // Configure acceleration sensors
-    AMIIGO_CMD_BLINK,         // Configure a single blink
-    AMIIGO_CMD_I2C_READ,      // Read i2c address and register
-    AMIIGO_CMD_I2C_WRITE,     // Write to i2c address and register
-} g_cmd = AMIIGO_CMD_NONE;
+AMIIGO_CMD g_cmd = AMIIGO_CMD_NONE;
 
-WEDVersion g_ver; // Firmware version
-unsigned int g_flat_ver = 0; // Flat version number to compare
-#define FW_VERSION(Major, Minor, Build) (Major * 100000u + Minor * 1000u + Build)
+// Amiigo devices to interact with
+amdev_t devices[2];
 
 WEDDebugI2CCmd g_i2c; // i2c debugging
-
 WEDConfigLS g_config_ls; // Light configuration
 WEDConfigAccel g_config_accel; // Acceleration sensors configuration
 WEDMaintLED g_maint_led; // Blink command
 
-WEDStatus g_status; // Device status
 
-// Some log packets to keep their state
-struct {
-    uint8 type; // WED_LOG_TAG
-
-    // Tag data from WED_MAINT_TAG command
-    uint32_t tag;
-} PACKED g_logTag;
-WEDLogTimestamp g_logTime;
-WEDLogAccel g_logAccel;
-WEDLogLSConfig g_logLSConfig;
-
-uint32_t g_read_logs = 0;  // Logs downloaded so far
-uint32_t g_total_logs = 0; // Total number of logs tp be downloaded
-int g_bValidAccel = 0; // If any uncompressed accel is received
-int g_decompress = 1; // If packets should be decompressed
-int g_raw = 0; // If should download raw logs (no compression)
 
 FILE * g_logFile = NULL; // file to download logs
 
-uint32_t g_fwup_speedup = 1; // How much to overload firmware update
 FILE * g_fwImageFile = NULL; // Firmware image file
 uint32_t g_fwImageSize = 0; // Firmware image size in bytes
 uint32_t g_fwImageWrittenSize = 0; // bytes transmitted
 uint16_t g_fwImagePage = 0; // Firmwate image total pages
 uint16_t g_fwImageWrittenPage = 0; // pages transmitted
 
-int g_bVerbose = 0; // verbose output
+//-------- flags -----------
+int g_leave_compressed = 0; // If packets should be left in compressed form
+int g_raw = 0; // If should download logs in raw format (no compression in firmware)
+int g_verbosity = 0; // verbose output
 int g_live = 0; // if live output is needed
 int g_console = 0; // if should print accel to console
+int g_bFull = 0; // If full characteristcs should be discovered
 
 // Downloaded file
 char g_szFullName[1024] = { 0 };
 
-enum DISCOVERY_STATE {
-    STATE_NONE = 0,
-    STATE_BUILD,
-    STATE_VERSION,
-    STATE_STATUS,
-    STATE_DOWNLOAD,
-    STATE_FWSTATUS,
-    STATE_FWSTATUS_WAIT,
-    STATE_I2C,
-
-    STATE_COUNT, // This must be the last
-} g_state = STATE_NONE;
-
-
-int g_bFull = 0; // If full characteristcs should be discovered
-
 // Execute the requested command
-int exec_command() {
+int exec_command(int sock) {
     switch (g_cmd) {
     case AMIIGO_CMD_DOWNLOAD:
-        return exec_download();
+        return exec_download(sock);
         break;
     case AMIIGO_CMD_CONFIGLS:
-        return exec_configls();
+        g_state = STATE_COUNT; // Done with command
+        return exec_configls(sock);
         break;
     case AMIIGO_CMD_CONFIGACCEL:
-        return exec_configaccel();
+        g_state = STATE_COUNT; // Done with command
+        return exec_configaccel(sock);
         break;
     case AMIIGO_CMD_BLINK:
-        return exec_blink();
+        g_state = STATE_COUNT; // Done with command
+        return exec_blink(sock);
         break;
     case AMIIGO_CMD_RESET_CPU:
     case AMIIGO_CMD_RESET_LOGS:
     case AMIIGO_CMD_RESET_CONFIGS:
-        return exec_reset(g_cmd);
+        return exec_reset(sock, g_cmd);
         break;
     case AMIIGO_CMD_FWUPDATE:
-        return exec_fwupdate();
+        return exec_fwupdate(sock);
         break;
     case AMIIGO_CMD_I2C_READ:
     case AMIIGO_CMD_I2C_WRITE:
-        return exec_debug_i2c();
+        return exec_debug_i2c(sock);
         break;
     default:
         return 0;
@@ -213,50 +116,46 @@ int exec_command() {
     return 0;
 }
 
-// State machine to get necessary information.
-// Discover device current status, and running firmware
-int discover_device() {
-    // TODO: this should go to a stack state-machine instead
-
-    uint16_t handle;
-
-    enum DISCOVERY_STATE new_state = STATE_NONE;
-    switch (g_state) {
-    case STATE_NONE:
-        handle = g_char[AMIIGO_UUID_BUILD].value_handle;
-        new_state = STATE_BUILD;
-        if (handle == 0) {
-            // Ignore information
-            g_state = new_state;
-            return discover_device();
-        }
-        break;
-    case STATE_BUILD:
-        handle = g_char[AMIIGO_UUID_VERSION].value_handle;
-        new_state = STATE_VERSION;
-        if (handle == 0) {
-            // Ignore information
-            g_state = new_state;
-            return discover_device();
-        }
-        break;
-    case STATE_VERSION:
-        handle = g_char[AMIIGO_UUID_STATUS].value_handle;
-        new_state = STATE_STATUS;
-        if (handle == 0) {
-            fprintf(stderr, "No device status to proceed!\n");
-            return -1; // Not ready yet
-        }
-        break;
-    default:
-        return 0; // already handled
-        break;
+int set_update_file(const char * szName) {
+    g_fwImageFile = fopen(szName, "r");
+    if (g_fwImageFile == NULL) {
+        fprintf(stderr, "Firmware image file (%s) not accessible!\n", szName);
+        return -1;
     }
-    g_state = new_state;
+    fseek(g_fwImageFile, 0, SEEK_END);
+    g_fwImageSize = ftell(g_fwImageFile);
+    fseek(g_fwImageFile, 0, SEEK_SET);
+    if (g_fwImageSize < WED_FW_HEADER_SIZE) {
+        fprintf(stderr, "Firmware image file (%s) too small!\n", szName);
+        return -1;
+    }
+    WEDFirmwareCommand fwcmd;
+    memset(&fwcmd, 0, sizeof(fwcmd));
+    fwcmd.pkt_type = WED_FIRMWARE_INIT;
+    fread(fwcmd.header, WED_FW_HEADER_SIZE, 1, g_fwImageFile);
 
-    // Read the handle of interest
-    int ret = exec_read(handle);
-    return ret;
+    uint16_t * hdr = (uint16_t *) &fwcmd.header[0];
+    // TODO: check CRC
+    //uint16_t fw_crc = hdr[0];
+    uint16_t fw_id = hdr[1];
+    g_fwImagePage = hdr[2];
+
+    if (fw_id != FWUP_HDR_ID) {
+        fprintf(stderr, "Firmware image (%s) invalid!\n", szName);
+        return -1;
+    }
+
+    if (WED_FW_BLOCK_SIZE * WED_FW_STREAM_BLOCKS * g_fwImagePage != g_fwImageSize) {
+        fprintf(stderr, "Firmware image (%s) invalid size!\n", szName);
+        return -1;
+    }
+
+    g_fwImageWrittenSize = 0;
+    g_fwImageWrittenPage = 0;
+    fseek(g_fwImageFile, 0, SEEK_SET);
+
+    g_cmd = AMIIGO_CMD_FWUPDATE;
+    return 0;
 }
 
 
@@ -268,16 +167,15 @@ void show_usage_screen(void) {
             "    More messages are dumped to console.\n"
             "  --full Full characteristics discovery. \n"
             "    If specified handles are queried.\n"
-            "  --i, --adapter uuid|hci<N>\n"
-            "    Interface adapter to use (default is hci0)\n"
-            "  --b, --device uuid \n"
-            "    Amiigo device to connect to.\n"
-            "    Can specify a UUID\n"
+            "  --i, --adapter uuid|hci<N>[,...]\n"
+            "    Interface adapter(s) to use (default is hci0)\n"
+            "  --b, --device uuid1[,...] \n"
+            "    Amiigo device(s) to connect to, default is shoepod then wristband.\n"
             "    Example: --b 90:59:AF:04:32:82\n"
             "    Use --lescan to find the UUID list\n"
             "  --lescan \n"
             "    Low energy scan (needs root priviledge)\n"
-            "  --command cmd \n"
+            "  --c, --command cmd \n"
             "    Command to execute:\n"
             "       status: (default) perform device discovery\n"
             "       download: download the logs\n"
@@ -357,7 +255,7 @@ static void do_command_line(int argc, char * const argv[]) {
             break;
 
         case 'v':
-            g_bVerbose = 1;
+            g_verbosity = 1;
             break;
 
         case 'a':
@@ -365,7 +263,7 @@ static void do_command_line(int argc, char * const argv[]) {
             break;
 
         case 'p':
-            g_decompress = 0;
+            g_leave_compressed = 1;
             break;
 
         case 'r':
@@ -448,21 +346,10 @@ int main(int argc, char **argv) {
     int ret;
     time_t start_time, stop_time, download_time;
 
-    memset(g_char, 0, sizeof(g_char));
-    int i;
-    for (i = 0; i < AMIIGO_UUID_COUNT; ++i)
-        bt_string_to_uuid(&g_char[i].uuid, g_szUUID[i]);
-
+    //---------- config packets ------------
     memset(&g_config_ls, 0, sizeof(g_config_ls));
     memset(&g_config_accel, 0, sizeof(g_config_accel));
     memset(&g_maint_led, 0, sizeof(g_maint_led));
-    memset(&g_status, 0, sizeof(g_status));
-    memset(&g_logTag, 0, sizeof(g_logTag));
-    memset(&g_logTime, 0, sizeof(g_logTime));
-    memset(&g_logAccel, 0, sizeof(g_logAccel));
-    memset(&g_logLSConfig, 0, sizeof(g_logLSConfig));
-    memset(&g_ver, 0, sizeof(g_ver));
-
     memset(&g_i2c, 0, sizeof(g_i2c));
 
     // Some defulats
@@ -470,14 +357,12 @@ int main(int argc, char **argv) {
     g_maint_led.led = 6;
     g_maint_led.speed = 1;
 
-    // Set default handles
-    g_char[AMIIGO_UUID_STATUS].value_handle = 0x0025;
-    g_char[AMIIGO_UUID_CONFIG].value_handle = 0x0027;
-    g_char[AMIIGO_UUID_LOGBLOCK].value_handle = 0x0029;
-    g_char[AMIIGO_UUID_FIRMWARE].value_handle = 0x002c;
-    g_char[AMIIGO_UUID_DEBUG].value_handle = 0x002e;
-    g_char[AMIIGO_UUID_BUILD].value_handle = 0x0030;
-    g_char[AMIIGO_UUID_VERSION].value_handle = 0x0032;
+    // zero-fill the devices state
+    memset(&devices[0], 0, sizeof(devices));
+
+
+    // Initialize the processing logic
+    init_process();
 
     // Set parameters based on command line
     do_command_line(argc, argv);
@@ -485,7 +370,7 @@ int main(int argc, char **argv) {
     int sock; // Link socket(s)
 
     // Connect to all devices
-    g_sock = gap_connect(g_src, g_dst);
+    sock = gap_connect(g_src, g_dst);
 
 
     if (g_bFull) {
@@ -513,12 +398,13 @@ int main(int argc, char **argv) {
         if (g_state != STATE_FWSTATUS_WAIT) {
             stop_time = time(NULL);
             double diff = difftime(stop_time, start_time);
-            // Keep-alive by readin status every 60s
+            // Keep-alive by reading status every 60s
             if (diff > 60) {
-                if (g_bVerbose)
+                if (g_verbosity)
                     printf(" (Keep alive)\n");
                 start_time = stop_time;
-                exec_read(g_char[AMIIGO_UUID_STATUS].value_handle);
+                // Read the status to keep conection alive
+                exec_status();
             }
             if (g_state == STATE_DOWNLOAD && !g_live) {
                 diff = difftime(stop_time, download_time);
@@ -532,7 +418,7 @@ int main(int argc, char **argv) {
         }
 
         uint8_t buf[1024] = {0};
-        int len = gap_recv(g_sock, &buf[0], sizeof(buf));
+        int len = gap_recv(sock, &buf[0], sizeof(buf));
         if (len < 0)
             break;
         if (len == 0)
@@ -540,7 +426,7 @@ int main(int argc, char **argv) {
 
         download_time = stop_time;
         // Process incoming data
-        ret = process_data(buf, len);
+        ret = process_data(sock, buf, len);
         if (ret) {
             fprintf(stderr, "main process_data() error\n");
             break;
@@ -555,7 +441,7 @@ int main(int argc, char **argv) {
 
     // Reset CPU if need to exit in the middle of firmware update
     if (g_state == STATE_FWSTATUS_WAIT)
-        exec_reset(AMIIGO_CMD_RESET_CPU);
+        exec_reset(sock, AMIIGO_CMD_RESET_CPU);
 
     printf("\n");
 

@@ -5,7 +5,16 @@
  * @author: dashesy
  */
 
-int set_command(const char * szName) {
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+
+
+#include "cmdparse.h"
+
+extern AMIIGO_CMD g_cmd;
+
+int parse_command(const char * szName) {
     if (strcasecmp(szName, "download") == 0) {
         g_cmd = AMIIGO_CMD_DOWNLOAD;
     } else if (strcasecmp(szName, "resetcpu") == 0) {
@@ -29,59 +38,17 @@ int set_command(const char * szName) {
     return 0;
 }
 
-int set_adapter(const char * szName) {
+int parse_adapter(const char * szName) {
     strcpy(g_src, szName);
     return 0;
 }
 
-int set_device(const char * szName) {
+int parse_device(const char * szName) {
     strcpy(g_dst, szName);
     return 0;
 }
 
-int set_update_file(const char * szName) {
-    g_fwImageFile = fopen(szName, "r");
-    if (g_fwImageFile == NULL) {
-        fprintf(stderr, "Firmware image file (%s) not accessible!\n", szName);
-        return -1;
-    }
-    fseek(g_fwImageFile, 0, SEEK_END);
-    g_fwImageSize = ftell(g_fwImageFile);
-    fseek(g_fwImageFile, 0, SEEK_SET);
-    if (g_fwImageSize < WED_FW_HEADER_SIZE) {
-        fprintf(stderr, "Firmware image file (%s) too small!\n", szName);
-        return -1;
-    }
-    WEDFirmwareCommand fwcmd;
-    memset(&fwcmd, 0, sizeof(fwcmd));
-    fwcmd.pkt_type = WED_FIRMWARE_INIT;
-    fread(fwcmd.header, WED_FW_HEADER_SIZE, 1, g_fwImageFile);
-
-    uint16_t * hdr = (uint16_t *) &fwcmd.header[0];
-    // TODO: check CRC
-    //uint16_t fw_crc = hdr[0];
-    uint16_t fw_id = hdr[1];
-    g_fwImagePage = hdr[2];
-
-    if (fw_id != FWUP_HDR_ID) {
-        fprintf(stderr, "Firmware image (%s) invalid!\n", szName);
-        return -1;
-    }
-
-    if (WED_FW_BLOCK_SIZE * WED_FW_STREAM_BLOCKS * g_fwImagePage != g_fwImageSize) {
-        fprintf(stderr, "Firmware image (%s) invalid size!\n", szName);
-        return -1;
-    }
-
-    g_fwImageWrittenSize = 0;
-    g_fwImageWrittenPage = 0;
-    fseek(g_fwImageFile, 0, SEEK_SET);
-
-    g_cmd = AMIIGO_CMD_FWUPDATE;
-    return 0;
-}
-
-int set_i2c_write(const char * szArg) {
+int parse_i2c_write(const char * szArg) {
 
     char * str = strdup(szArg);
     char * pch;
@@ -109,7 +76,7 @@ int set_i2c_write(const char * szArg) {
     return 0;
 }
 
-int set_i2c_read(const char * szArg) {
+int parse_i2c_read(const char * szArg) {
     char * str = strdup(szArg);
     char * pch;
     pch = strtok (str, ":");
@@ -153,7 +120,7 @@ void trim(char *str)
     str[i - begin] = '\0'; // Null terminate string.
 }
 
-int set_input_file(const char * szName) {
+int parse_input_file(const char * szName) {
     char szCmd[256];
     char szParam[256];
     char szVal[256];

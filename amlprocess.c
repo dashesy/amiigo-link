@@ -13,7 +13,71 @@
 #include "att.h"
 
 #include "amidefs.h"
-#include "amprocess.h"
+#include "amdev->h"
+#include "amlprocess.h"
+
+#define FW_VERSION(Major, Minor, Build) (Major * 100000u + Minor * 1000u + Build)
+
+uint32_t g_fwup_speedup = 1; // How much to overload firmware update
+
+enum {
+    STD_UUID_CCC = 0,
+    AMIIGO_UUID_SERVICE,
+    AMIIGO_UUID_STATUS,
+    AMIIGO_UUID_CONFIG,
+    AMIIGO_UUID_LOGBLOCK,
+    AMIIGO_UUID_FIRMWARE,
+    AMIIGO_UUID_DEBUG,
+    AMIIGO_UUID_BUILD,
+    AMIIGO_UUID_VERSION,
+
+    AMIIGO_UUID_COUNT // This must be the last
+};
+
+struct gatt_char g_char[AMIIGO_UUID_COUNT];
+
+// Client configuration (for notification and indication)
+const char * g_szUUID[] = {
+    "00002902-0000-1000-8000-00805f9b34fb",
+    "cca31000-78c6-4785-9e45-0887d451317c",
+    "cca30001-78c6-4785-9e45-0887d451317c",
+    "cca30002-78c6-4785-9e45-0887d451317c",
+    "cca30003-78c6-4785-9e45-0887d451317c",
+    "cca30004-78c6-4785-9e45-0887d451317c",
+    "cca30005-78c6-4785-9e45-0887d451317c",
+    "cca30006-78c6-4785-9e45-0887d451317c",
+    "cca30007-78c6-4785-9e45-0887d451317c",
+};
+
+
+/******************************************************************************/
+typedef struct {
+    uint8* buf;
+    uint8 pos;
+} GetBits;
+/******************************************************************************/
+static inline void cmpGetBitsInit(GetBits* gb, void* buf) {
+
+    gb->buf = buf;
+    gb->pos = 0;
+}
+/******************************************************************************/
+static int8 cmpGetBits(GetBits* gb, uint8 nbits) {
+
+    int8 val = gb->buf[0] << gb->pos;
+
+    uint8 buf0bits = 8 - gb->pos;
+    if (buf0bits < nbits)
+        val |= gb->buf[1] >> buf0bits;
+
+    gb->pos += nbits;
+    if (gb->pos >= 8) {
+        gb->buf++;
+        gb->pos -= 8;
+    }
+
+    return val >> (8 - nbits);
+}
 
 // Open file for logging
 // Inputs:
@@ -39,6 +103,23 @@ int dump_buffer(uint8_t * buf, ssize_t buflen) {
     printf("\n");
 
     return 0;
+}
+
+// Initialize the processing unit
+void process_init() {
+    memset(g_char, 0, sizeof(g_char));
+    int i;
+    for (i = 0; i < AMIIGO_UUID_COUNT; ++i)
+        bt_string_to_uuid(&g_char[i].uuid, g_szUUID[i]);
+
+    // Set default handles
+    g_char[AMIIGO_UUID_STATUS].value_handle = 0x0025;
+    g_char[AMIIGO_UUID_CONFIG].value_handle = 0x0027;
+    g_char[AMIIGO_UUID_LOGBLOCK].value_handle = 0x0029;
+    g_char[AMIIGO_UUID_FIRMWARE].value_handle = 0x002c;
+    g_char[AMIIGO_UUID_DEBUG].value_handle = 0x002e;
+    g_char[AMIIGO_UUID_BUILD].value_handle = 0x0030;
+    g_char[AMIIGO_UUID_VERSION].value_handle = 0x0032;
 }
 
 // Firmware update in progress
@@ -179,15 +260,26 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
     return ret;
 }
 
+// Add a single accel log line to the file (and optionally to console)
+void add_accel_line(const WEDLogAccel * logAccel) {
+    char log_line[512] = {0};
+    sprintf(log_line, "[\"accelerometer\",[%d,%d,%d]]\n", logAccel->accel[0], logAccel->accel[1], logAccel->accel[2]);
+    fprintf(g_logFile, log_line);
+    if (g_console) {
+        printf(log_line);
+        fflush(stdout);
+    }
+}
+
 // Continue downloading packets
-int process_download(uint8_t * buf, ssize_t buflen) {
+int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     int i;
     uint16_t handle = 0;
 
     handle = att_get_u16(&buf[1]);
     if (buflen < 4) {
         printf("Last notification handle = 0x%04x\n", handle);
-        g_state = STATE_COUNT;
+        dev->state = STATE_COUNT;
         return 0;
     }
 
@@ -196,6 +288,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
     WEDLogAccelCmp logAccelCmp;
     WEDLogLSData logLSData;
     WEDLogTemp logTemp;
+    WEDLogLSConfig logLSConfig;
 
     // TODO: check packet sizes
     // TODO: check data integrity
@@ -206,7 +299,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
     WED_LOG_TYPE log_type = buf[payload] & 0x0F;
     while (payload < buflen) {
         if (log_type != WED_LOG_ACCEL_CMP)
-            g_read_logs++; // Total number of log points downloaded so far
+            dev->read_logs++; // Total number of log points downloaded so far
 
         switch (log_type) {
         uint16_t val16;
@@ -215,60 +308,53 @@ int process_download(uint8_t * buf, ssize_t buflen) {
         int nbits;
 
         case WED_LOG_TIME:
-            packet_len = sizeof(g_logTime);
+            packet_len = sizeof(dev->logTime);
 
             if (g_logFile == NULL)
                 g_logFile = log_file_open();
 
-            g_logTime.type = log_type;
-            g_logTime.timestamp = att_get_u32(&buf[payload + 1]);
-            g_logTime.flags = buf[payload + 5];
-            reset_detected = g_logTime.flags & TIMESTAMP_REBOOTED;
+            dev->logTime.type = log_type;
+            dev->logTime.timestamp = att_get_u32(&buf[payload + 1]);
+            dev->logTime.flags = buf[payload + 5];
+            reset_detected = dev->logTime.flags & TIMESTAMP_REBOOTED;
 
             if (reset_detected)
                 printf(" (reboot detected)\n");
 
-            fprintf(g_logFile, "[\"timestamp\",[%u,%u]]\n", g_logTime.timestamp, g_logTime.flags);
+            fprintf(g_logFile, "[\"timestamp\",[%u,%u]]\n", dev->logTime.timestamp, dev->logTime.flags);
 
             break;
         case WED_LOG_ACCEL:
-            packet_len = sizeof(g_logAccel);
+            packet_len = sizeof(dev->logAccel);
 
             if (g_logFile == NULL)
                 g_logFile = log_file_open();
 
-            g_bValidAccel = 1;
-            g_logAccel.type = log_type;
+            dev->bValidAccel = 1;
+            dev->logAccel.type = log_type;
             for (i = 0; i < 3; ++i)
-                g_logAccel.accel[i] = buf[payload + 1 + i];
-            fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
-                    g_logAccel.accel[1], g_logAccel.accel[2]);
-            if (g_console) {
-                printf("[\"accelerometer\",[%02d,%02d,%02d]]\n", g_logAccel.accel[0],
-                        g_logAccel.accel[1], g_logAccel.accel[2]);
-                fflush(stdout);
-
-            }
+                dev->logAccel.accel[i] = buf[payload + 1 + i];
+            add_accel_line(&dev->logAccel);
             break;
         case WED_LOG_LS_CONFIG:
-            packet_len = sizeof(g_logLSConfig);
+            packet_len = sizeof(logLSConfig);
 
             if (g_logFile == NULL)
                 g_logFile = log_file_open();
 
-            g_logLSConfig.type = log_type;
-            g_logLSConfig.dac_on = buf[payload + 1];
-            g_logLSConfig.reserved = buf[payload + 2];
-            g_logLSConfig.level_led = buf[payload + 3];
-            g_logLSConfig.gain = buf[payload + 4];
-            g_logLSConfig.log_size = buf[payload + 5];
+            logLSConfig.type = log_type;
+            logLSConfig.dac_on = buf[payload + 1];
+            logLSConfig.reserved = buf[payload + 2];
+            logLSConfig.level_led = buf[payload + 3];
+            logLSConfig.gain = buf[payload + 4];
+            logLSConfig.log_size = buf[payload + 5];
             fprintf(g_logFile, "[\"lightsensor_config\",[\"dac_on\",%u],"
-                    "[\"level_led\",%u],[\"gain\",%u],[\"log_size\",%u]]\n", g_logLSConfig.dac_on,
-                    g_logLSConfig.level_led, g_logLSConfig.gain, g_logLSConfig.log_size);
+                    "[\"level_led\",%u],[\"gain\",%u],[\"log_size\",%u]]\n", logLSConfig.dac_on,
+                    logLSConfig.level_led, logLSConfig.gain, logLSConfig.log_size);
             break;
         case WED_LOG_LS_DATA:
             logLSData.type = log_type;
-            if (g_flat_ver < FW_VERSION(1,8,84))
+            if (dev->ver_flat < FW_VERSION(1,8,84))
             {
                 packet_len = 3 + (sizeof(uint16) * (((WEDLogLSData*)&buf[payload])->val[0] >> 14));
                 val16 = att_get_u16(&buf[payload + 1]);
@@ -329,14 +415,14 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             fprintf(g_logFile, "[\"temperature\",%d]\n", logTemp.temperature);
             break;
         case WED_LOG_TAG:
-            packet_len = sizeof(g_logTag);
+            packet_len = sizeof(dev->logTag);
 
             if (g_logFile == NULL)
                 g_logFile = log_file_open();
 
-            g_logTag.type = log_type;
-            g_logTag.tag = att_get_u32(&buf[payload + 1]);
-            fprintf(g_logFile, "[\"tag\",%u]\n", g_logTag.tag);
+            dev->logTag.type = log_type;
+            dev->logTag.tag = att_get_u32(&buf[payload + 1]);
+            fprintf(g_logFile, "[\"tag\",%u]\n", dev->logTag.tag);
             break;
         case WED_LOG_ACCEL_CMP:
             packet_len = WEDLogAccelCmpSize(&buf[payload]);
@@ -347,8 +433,8 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             logAccelCmp.type = log_type;
             logAccelCmp.count_bits = buf[payload + 1];
             field_count = (logAccelCmp.count_bits & 0xF) + 1;
-            g_read_logs += field_count;
-            if (!g_decompress) {
+            dev->read_logs += field_count;
+            if (g_leave_compressed) {
                 fprintf(g_logFile, "[\"accelerometer_compressed\",[\"count_bits\",%u],[\"data\",[",logAccelCmp.count_bits);
                 for (i = 0; i < packet_len - 2; ++i) {
                     fprintf(g_logFile, "%u", buf[payload + 2 + i]);
@@ -375,7 +461,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                 break;
             case WED_LOG_ACCEL_CMP_8_BIT:
                 nbits = 8;
-                g_bValidAccel = 1;
+                dev->bValidAccel = 1;
                 break;
             case WED_LOG_ACCEL_CMP_STILL:
                 if (logAccelCmp.count_bits & 0x80)
@@ -391,7 +477,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
 
 
             // We must first get at least one uncompressed accel log
-            if (!g_bValidAccel)
+            if (!dev->bValidAccel)
                 break;
 
             if (g_logFile == NULL)
@@ -400,13 +486,7 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             if (nbits == 0) {
                 // It is still, just replicate
                 while (field_count--) {
-                    fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
-                            g_logAccel.accel[1], g_logAccel.accel[2]);
-                    if (g_console) {
-                        printf("[\"accelerometer\",[%02d,%02d,%02d]]\n", g_logAccel.accel[0],
-                                g_logAccel.accel[1], g_logAccel.accel[2]);
-                        fflush(stdout);
-                    }
+                    add_accel_line(&dev->logAccel);
                 }
                 break;
             }
@@ -416,16 +496,9 @@ int process_download(uint8_t * buf, ssize_t buflen) {
             if (nbits == 8) {
                 while (field_count--) {
                     for (i = 0; i < 3; ++i)
-                        g_logAccel.accel[i] = pdu[i];
+                        dev->logAccel.accel[i] = pdu[i];
                     pdu += 3;
-                    fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
-                            g_logAccel.accel[1], g_logAccel.accel[2]);
-                    if (g_console) {
-                        printf("[\"accelerometer\",[%02d,%02d,%02d]]\n", g_logAccel.accel[0],
-                                g_logAccel.accel[1], g_logAccel.accel[2]);
-                        fflush(stdout);
-
-                    }
+                    add_accel_line(&dev->logAccel);
                 }
             } else {
                 GetBits gb;
@@ -434,16 +507,9 @@ int process_download(uint8_t * buf, ssize_t buflen) {
                     uint8 i;
                     for (i = 0; i < 3; i++) {
                         int8 diff = cmpGetBits(&gb, nbits);
-                        g_logAccel.accel[i] += diff;
+                        dev->logAccel.accel[i] += diff;
                     }
-                    fprintf(g_logFile, "[\"accelerometer\",[%d,%d,%d]]\n", g_logAccel.accel[0],
-                            g_logAccel.accel[1], g_logAccel.accel[2]);
-                    if (g_console) {
-                        printf("[\"accelerometer\",[%02d,%02d,%02d]]\n", g_logAccel.accel[0],
-                                g_logAccel.accel[1], g_logAccel.accel[2]);
-                        fflush(stdout);
-
-                    }
+                    add_accel_line(&dev->logAccel);
                 }
             }
 
@@ -467,12 +533,12 @@ int process_download(uint8_t * buf, ssize_t buflen) {
     } // end while (payload < buflen
 
     if (!g_live) {
-        printf("\rdownloading ... %u out of %u  (%2.0f%%)", g_read_logs,
-                g_total_logs, (100.0 * g_read_logs) / g_total_logs);
-        if (g_read_logs >= g_total_logs || g_status.num_log_entries == 0)
+        printf("\rdownloading ... %u out of %u  (%2.0f%%)", dev->read_logs,
+                dev->total_logs, (100.0 * dev->read_logs) / dev->total_logs);
+        if (dev->read_logs >= dev->total_logs || dev->status.num_log_entries == 0)
         {
-            printf("\n%s", g_szFullName);
-            g_state = STATE_COUNT; // Done with command
+            printf("\n %s finished downloading\n", g_szFullName);
+            dev->state = STATE_COUNT; // Done with command
         }
         fflush(stdout);
     }
@@ -529,6 +595,52 @@ int process_debug_i2c(uint8_t * buf, ssize_t buflen) {
     printf(" %x\n", i2c_res.data);
 
     return 0;
+}
+
+// State machine to get necessary information.
+// Discover device current status, and running firmware
+int discover_device() {
+    // TODO: this should go to a stack state-machine instead
+
+    uint16_t handle;
+
+    enum DISCOVERY_STATE new_state = STATE_NONE;
+    switch (g_state) {
+    case STATE_NONE:
+        handle = g_char[AMIIGO_UUID_BUILD].value_handle;
+        new_state = STATE_BUILD;
+        if (handle == 0) {
+            // Ignore information
+            g_state = new_state;
+            return discover_device();
+        }
+        break;
+    case STATE_BUILD:
+        handle = g_char[AMIIGO_UUID_VERSION].value_handle;
+        new_state = STATE_VERSION;
+        if (handle == 0) {
+            // Ignore information
+            g_state = new_state;
+            return discover_device();
+        }
+        break;
+    case STATE_VERSION:
+        handle = g_char[AMIIGO_UUID_STATUS].value_handle;
+        new_state = STATE_STATUS;
+        if (handle == 0) {
+            fprintf(stderr, "No device status to proceed!\n");
+            return -1; // Not ready yet
+        }
+        break;
+    default:
+        return 0; // already handled
+        break;
+    }
+    g_state = new_state;
+
+    // Read the handle of interest
+    int ret = exec_read(handle);
+    return ret;
 }
 
 //----------------------------------------------------------------------------------------

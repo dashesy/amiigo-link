@@ -12,8 +12,22 @@
 #include "amidefs.h"
 #include "amproto.h"
 
+// Read the status (this is called also for keep-alive)
+int exec_status(int sock) {
+    int ret;
+
+    uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    // Now read for status
+    ret = exec_read(sock, handle);
+
+    return ret;
+}
+
 // Start firmware update procedure
-int exec_fwupdate() {
+int exec_fwupdate(int sock) {
     int ret;
     g_state = STATE_FWSTATUS;
 
@@ -24,13 +38,13 @@ int exec_fwupdate() {
     printf("\nPreparing for update ...\n");
 
     // Now read for status
-    ret = exec_read(handle);
+    ret = exec_read(sock, handle);
 
     return ret;
 }
 
 // Debug i2c by reading or writing register on given address
-int exec_debug_i2c() {
+int exec_debug_i2c(int sock) {
     int ret;
     g_state = STATE_I2C;
 
@@ -38,20 +52,20 @@ int exec_debug_i2c() {
     if (handle == 0)
         return -1; // Not ready yet
 
-    ret = exec_write(handle, (uint8_t *) &g_i2c, sizeof(g_i2c));
+    ret = exec_write(sock, handle, (uint8_t *) &g_i2c, sizeof(g_i2c));
     if (ret)
         return -1;
 
     // Wait for it a little
     usleep(100);
-    ret = exec_read(handle);
+    ret = exec_read(sock, handle);
 
     return ret;
 }
 
 // Start downloading the log packets
-int exec_download() {
-    if (g_status.num_log_entries == 0) {
+int exec_download(int sock) {
+    if (g_status.num_log_entries == 0 && !g_live) {
         // Nothing to download!
         g_state = STATE_COUNT;
         return 0;
@@ -76,7 +90,7 @@ int exec_download() {
         config.log.flags |= WED_CONFIG_LOG_LOOPBACK;
 
 
-    int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
         return -1;
 
@@ -84,7 +98,7 @@ int exec_download() {
 }
 
 // Start configuration of light sensors
-int exec_configls() {
+int exec_configls(int sock) {
     g_state = STATE_COUNT; // Done with command
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
@@ -96,7 +110,7 @@ int exec_configls() {
     config.config_type = WED_CFG_LS;
     config.lightsensor = g_config_ls;
 
-    int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
         return -1;
 
@@ -104,7 +118,7 @@ int exec_configls() {
 }
 
 // Start configuration of accel sensors
-int exec_configaccel() {
+int exec_configaccel(int sock) {
     g_state = STATE_COUNT; // Done with command
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
@@ -116,7 +130,7 @@ int exec_configaccel() {
     config.config_type = WED_CFG_ACCEL;
     config.accel = g_config_accel;
 
-    int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
         return -1;
 
@@ -124,7 +138,7 @@ int exec_configaccel() {
 }
 
 // Start LED blinking
-int exec_blink() {
+int exec_blink(int sock) {
     g_state = STATE_COUNT; // Done with command
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
@@ -140,7 +154,7 @@ int exec_blink() {
     config.config_type = WED_CFG_MAINT;
     config.maint = config_maint;
 
-    int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
         return -1;
 
@@ -148,7 +162,7 @@ int exec_blink() {
 }
 
 // Reset config, or CPU or log buffer
-int exec_reset(enum AMIIGO_CMD cmd) {
+int exec_reset(int sock, enum AMIIGO_CMD cmd) {
     g_state = STATE_COUNT; // Done with command
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
@@ -178,7 +192,7 @@ int exec_reset(enum AMIIGO_CMD cmd) {
     config.config_type = WED_CFG_MAINT;
     config.maint = config_maint;
 
-    int ret = exec_write(handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
         return -1;
 
