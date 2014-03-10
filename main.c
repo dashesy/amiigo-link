@@ -341,7 +341,7 @@ int main(int argc, char **argv) {
                 // Download timeout reached
                 if (diff > 2)
                 {
-                    printf(" (Timeou %st)\n", g_cfg.dst[dev_idx]);
+                    printf(" (Timeout %s)\n", g_cfg.dst[dev_idx]);
                     break;
                 }
             }
@@ -360,7 +360,7 @@ int main(int argc, char **argv) {
         // Process incoming data
         ret = process_data(dev, buf, len);
         if (ret) {
-            fprintf(stderr, "main process_data() error\n");
+            fprintf(stderr, "main process_data() error in %s\n", g_cfg.dst[dev_idx]);
             break;
         }
         if (dev->state == STATE_COUNT)
@@ -384,7 +384,6 @@ int main(int argc, char **argv) {
         if (dev->state == STATE_FWSTATUS_WAIT)
             exec_reset(dev->sock, AMIIGO_CMD_RESET_CPU);
 
-        printf("\n");
 
         // Close the socket
         gap_shutdown(dev->sock);
@@ -396,6 +395,7 @@ int main(int argc, char **argv) {
             dev->logFile = NULL;
         }
     }
+    printf("\n");
 
     return 0;
 }
