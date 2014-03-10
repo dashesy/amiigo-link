@@ -24,6 +24,7 @@
 #include "gapproto.h"
 #include "amproto.h"
 #include "amlprocess.h"
+#include "amchar.h"
 #include "cmdparse.h"
 
 #define FWUP_HDR_ID 0x0101
@@ -39,7 +40,6 @@ WEDDebugI2CCmd g_i2c; // i2c debugging
 WEDConfigLS g_config_ls; // Light configuration
 WEDConfigAccel g_config_accel; // Acceleration sensors configuration
 WEDMaintLED g_maint_led; // Blink command
-
 
 
 FILE * g_logFile = NULL; // file to download logs

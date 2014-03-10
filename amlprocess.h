@@ -8,11 +8,11 @@
 #ifndef AMLPROCESS_H
 #define AMLPROCESS_H
 
-typedef struct _amdev {
-} amdev_t;
+// Optional all-inclusive handles
+#define OPT_START_HANDLE 0x0001
+#define OPT_END_HANDLE   0xffff
 
-void process_init(void);
-
-int process_data(uint8_t * buf, ssize_t buflen);
+int discover_device(amdev_t * dev);
+int process_data(amdev_t * dev, uint8_t * buf, ssize_t buflen);
 
 #endif // include guard

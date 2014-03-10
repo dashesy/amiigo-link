@@ -8,19 +8,16 @@
 #ifndef CMDPARSE_H
 #define CMDPARSE_H
 
-typedef enum _AMIIGO_CMD {
-    AMIIGO_CMD_NONE = 0,      // Just to do a connection status test
-    AMIIGO_CMD_FWUPDATE,      // Firmware update
-    AMIIGO_CMD_RESET_LOGS,    // Reset log buffer
-    AMIIGO_CMD_RESET_CPU,     // Reset CPU
-    AMIIGO_CMD_RESET_CONFIGS, // Reset configurations to default
-    AMIIGO_CMD_DOWNLOAD,      // Download all the logs
-    AMIIGO_CMD_CONFIGLS,      // Configure light sensors
-    AMIIGO_CMD_CONFIGACCEL,   // Configure acceleration sensors
-    AMIIGO_CMD_BLINK,         // Configure a single blink
-    AMIIGO_CMD_I2C_READ,      // Read i2c address and register
-    AMIIGO_CMD_I2C_WRITE,     // Write to i2c address and register
-} AMIIGO_CMD;
+#include "amcmd.h"
+
+extern AMIIGO_CMD g_cmd;
+
+int parse_command(const char * szName);
+int parse_adapter(const char * szName);
+int parse_device(const char * szName);
+int parse_i2c_write(const char * szArg);
+int parse_i2c_read(const char * szArg);
+int parse_input_file(const char * szName) ;
 
 
 #endif // include guard

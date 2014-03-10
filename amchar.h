@@ -8,8 +8,6 @@
 #ifndef AMCHAR_H
 #define AMCHAR_H
 
-#include "att.h"
-
 enum {
     STD_UUID_CCC = 0,
     AMIIGO_UUID_SERVICE,
@@ -26,6 +24,6 @@ enum {
 
 void char_init(void);
 
-extern struct gatt_char g_char[AMIIGO_UUID_COUNT];
+extern struct gatt_char * g_char;
 
 #endif // include guard

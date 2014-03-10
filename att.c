@@ -43,7 +43,7 @@
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
-bool is_response(uint8_t opcode) {
+uint8_t is_response(uint8_t opcode) {
     switch (opcode) {
     case ATT_OP_ERROR:
     case ATT_OP_MTU_RESP:
@@ -58,10 +58,10 @@ bool is_response(uint8_t opcode) {
     case ATT_OP_PREP_WRITE_RESP:
     case ATT_OP_EXEC_WRITE_RESP:
     case ATT_OP_HANDLE_CNF:
-        return true;
+        return 1;
     }
 
-    return false;
+    return 0;
 }
 
 uint8_t opcode2expected(uint8_t opcode) {

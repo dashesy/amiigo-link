@@ -17,6 +17,8 @@
 
 #include "amidefs.h"
 #include "amproto.h"
+#include "amchar.h"
+#include "amlcmd.h"
 
 // Read the status (this is called also for keep-alive)
 int exec_status(int sock) {
@@ -78,11 +80,11 @@ int exec_download(int sock) {
     WEDConfig config;
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_LOG;
-    if (g_raw)
+    if (g_opt.raw)
         config.log.flags = WED_CONFIG_LOG_DL_EN;
     else
         config.log.flags = WED_CONFIG_LOG_DL_EN | WED_CONFIG_LOG_CMP_EN;
-    if (g_live)
+    if (g_opt.live)
         config.log.flags |= WED_CONFIG_LOG_LOOPBACK;
 
 
@@ -155,7 +157,7 @@ int exec_blink(int sock) {
 }
 
 // Reset config, or CPU or log buffer
-int exec_reset(int sock, enum AMIIGO_CMD cmd) {
+int exec_reset(int sock, AMIIGO_CMD cmd) {
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
     if (handle == 0)

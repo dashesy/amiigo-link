@@ -242,7 +242,7 @@ int bt_string_to_uuid(bt_uuid_t *uuid, const char *string);
 #define ATT_FIND_INFO_RESP_FMT_16BIT		0x01
 #define ATT_FIND_INFO_RESP_FMT_128BIT		0x02
 
-bool is_response(uint8_t opcode);
+uint8_t is_response(uint8_t opcode);
 
 uint8_t opcode2expected(uint8_t opcode);
 

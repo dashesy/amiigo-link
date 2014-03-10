@@ -9,45 +9,29 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <termios.h>
+#include <getopt.h>
+#include <time.h>
+#include <ctype.h>
+#include <string.h>
+
+#include "jni/bluetooth.h"
 
 #include "att.h"
 
+#include "common.h"
 #include "amidefs.h"
-#include "amdev->h"
+#include "amdev.h"
 #include "amlprocess.h"
+#include "amchar.h"
+#include "gapproto.h"
 
 #define FW_VERSION(Major, Minor, Build) (Major * 100000u + Minor * 1000u + Build)
 
 uint32_t g_fwup_speedup = 1; // How much to overload firmware update
 
-enum {
-    STD_UUID_CCC = 0,
-    AMIIGO_UUID_SERVICE,
-    AMIIGO_UUID_STATUS,
-    AMIIGO_UUID_CONFIG,
-    AMIIGO_UUID_LOGBLOCK,
-    AMIIGO_UUID_FIRMWARE,
-    AMIIGO_UUID_DEBUG,
-    AMIIGO_UUID_BUILD,
-    AMIIGO_UUID_VERSION,
-
-    AMIIGO_UUID_COUNT // This must be the last
-};
-
-struct gatt_char g_char[AMIIGO_UUID_COUNT];
-
-// Client configuration (for notification and indication)
-const char * g_szUUID[] = {
-    "00002902-0000-1000-8000-00805f9b34fb",
-    "cca31000-78c6-4785-9e45-0887d451317c",
-    "cca30001-78c6-4785-9e45-0887d451317c",
-    "cca30002-78c6-4785-9e45-0887d451317c",
-    "cca30003-78c6-4785-9e45-0887d451317c",
-    "cca30004-78c6-4785-9e45-0887d451317c",
-    "cca30005-78c6-4785-9e45-0887d451317c",
-    "cca30006-78c6-4785-9e45-0887d451317c",
-    "cca30007-78c6-4785-9e45-0887d451317c",
-};
+// Downloaded file
+char g_szFullName[1024] = { 0 };
 
 
 /******************************************************************************/
@@ -105,25 +89,8 @@ int dump_buffer(uint8_t * buf, ssize_t buflen) {
     return 0;
 }
 
-// Initialize the processing unit
-void process_init() {
-    memset(g_char, 0, sizeof(g_char));
-    int i;
-    for (i = 0; i < AMIIGO_UUID_COUNT; ++i)
-        bt_string_to_uuid(&g_char[i].uuid, g_szUUID[i]);
-
-    // Set default handles
-    g_char[AMIIGO_UUID_STATUS].value_handle = 0x0025;
-    g_char[AMIIGO_UUID_CONFIG].value_handle = 0x0027;
-    g_char[AMIIGO_UUID_LOGBLOCK].value_handle = 0x0029;
-    g_char[AMIIGO_UUID_FIRMWARE].value_handle = 0x002c;
-    g_char[AMIIGO_UUID_DEBUG].value_handle = 0x002e;
-    g_char[AMIIGO_UUID_BUILD].value_handle = 0x0030;
-    g_char[AMIIGO_UUID_VERSION].value_handle = 0x0032;
-}
-
 // Firmware update in progress
-int process_fwstatus(uint8_t * buf, ssize_t buflen) {
+int process_fwstatus(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     int ret = 0;
     WEDFirmwareStatus fwstatus;
     memset(&fwstatus, 0, sizeof(fwstatus));
@@ -132,7 +99,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
 
     uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
 
-    if (g_state == STATE_FWSTATUS)
+    if (dev->state == STATE_FWSTATUS)
     {
         if (fwstatus.status != WED_FWSTATUS_IDLE)
         {
@@ -144,7 +111,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
 
     if (fwstatus.status == WED_FWSTATUS_WAIT
             || fwstatus.status == WED_FWSTATUS_IDLE) {
-        if (g_state == STATE_FWSTATUS)
+        if (dev->state == STATE_FWSTATUS)
         {
             WEDFirmwareCommand fwcmd;
             memset(&fwcmd, 0, sizeof(fwcmd));
@@ -153,13 +120,13 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
             fseek(g_fwImageFile, 0, SEEK_SET);
             g_fwImageWrittenSize = 0;
 
-            ret = exec_write(handle, (uint8_t *) &fwcmd, sizeof(fwcmd));
+            ret = exec_write(dev->sock, handle, (uint8_t *) &fwcmd, sizeof(fwcmd));
             if (ret)
                 return -1;
             // We have already written the header
-            g_state = STATE_FWSTATUS_WAIT;
+            dev->state = STATE_FWSTATUS_WAIT;
         }
-        ret = exec_read(handle); // Continue polling
+        ret = exec_read(dev->sock, handle); // Continue polling
     } else if (fwstatus.status == WED_FWSTATUS_ERROR) {
         switch (fwstatus.error_code) {
         case WED_FWERROR_HEADER:
@@ -197,7 +164,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                 size_t len = fread(fwdata.data, 1, WED_FW_BLOCK_SIZE, g_fwImageFile);
                 if (len == 0) {
                     bFinished = 1;
-                    if (g_bVerbose)
+                    if (g_opt.verbosity)
                         printf("(ended)\n");
                     break;
                 }
@@ -207,7 +174,7 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
                     break;
                 }
                 g_fwImageWrittenSize += len;
-                ret = exec_write(handle, (uint8_t *) &fwdata, sizeof(fwdata));
+                ret = exec_write(dev->sock, handle, (uint8_t *) &fwdata, sizeof(fwdata));
                 if (ret)
                 {
                     fseek(g_fwImageFile, offset, SEEK_SET);
@@ -235,11 +202,11 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
             memset(&fwcmd, 0, sizeof(fwcmd));
             fwcmd.pkt_type = WED_FIRMWARE_DATA_DONE;
 
-            ret = exec_write(handle, (uint8_t *) &fwcmd, sizeof(fwcmd));
+            ret = exec_write(dev->sock, handle, (uint8_t *) &fwcmd, sizeof(fwcmd));
         }
         fflush(stdout);
 
-        ret = exec_read(handle); // Continue polling
+        ret = exec_read(dev->sock, handle); // Continue polling
     } else if (fwstatus.status == WED_FWSTATUS_UPDATE_READY) {
         if (g_fwImageWrittenSize != g_fwImageSize) {
             fprintf(stderr, " Update not ready!\n");
@@ -249,10 +216,10 @@ int process_fwstatus(uint8_t * buf, ssize_t buflen) {
         memset(&fwcmd, 0, sizeof(fwcmd));
         fwcmd.pkt_type = WED_FIRMWARE_UPDATE;
 
-        ret = exec_write(handle, (uint8_t *) &fwcmd, sizeof(fwcmd));
+        ret = exec_write(dev->sock, handle, (uint8_t *) &fwcmd, sizeof(fwcmd));
         printf(" (Updating done)\n");
         // Done with command
-        g_state = STATE_COUNT;
+        dev->state = STATE_COUNT;
     } else {
         fprintf(stderr, "Unknown firmware update state (%u)\n", fwstatus.status);
         ret = -1;
@@ -265,7 +232,7 @@ void add_accel_line(const WEDLogAccel * logAccel) {
     char log_line[512] = {0};
     sprintf(log_line, "[\"accelerometer\",[%d,%d,%d]]\n", logAccel->accel[0], logAccel->accel[1], logAccel->accel[2]);
     fprintf(g_logFile, log_line);
-    if (g_console) {
+    if (g_opt.console) {
         printf(log_line);
         fflush(stdout);
     }
@@ -434,7 +401,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             logAccelCmp.count_bits = buf[payload + 1];
             field_count = (logAccelCmp.count_bits & 0xF) + 1;
             dev->read_logs += field_count;
-            if (g_leave_compressed) {
+            if (g_opt.leave_compressed) {
                 fprintf(g_logFile, "[\"accelerometer_compressed\",[\"count_bits\",%u],[\"data\",[",logAccelCmp.count_bits);
                 for (i = 0; i < packet_len - 2; ++i) {
                     fprintf(g_logFile, "%u", buf[payload + 2 + i]);
@@ -532,7 +499,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             log_type = buf[payload] & 0x0F;
     } // end while (payload < buflen
 
-    if (!g_live) {
+    if (!g_opt.live) {
         printf("\rdownloading ... %u out of %u  (%2.0f%%)", dev->read_logs,
                 dev->total_logs, (100.0 * dev->read_logs) / dev->total_logs);
         if (dev->read_logs >= dev->total_logs || dev->status.num_log_entries == 0)
@@ -547,32 +514,32 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
 }
 
 // Set device status
-int process_status(uint8_t * buf, ssize_t buflen) {
+int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     uint8_t * pdu = &buf[1];
-    g_status.num_log_entries = att_get_u32(&pdu[0]);
-    g_status.battery_level = pdu[4];
-    g_status.status = pdu[5];
-    g_status.cur_time = att_get_u32(&pdu[6]);
-    memcpy(&g_status.cur_tag, &pdu[10], WED_TAG_SIZE);
+    dev->status.num_log_entries = att_get_u32(&pdu[0]);
+    dev->status.battery_level = pdu[4];
+    dev->status.status = pdu[5];
+    dev->status.cur_time = att_get_u32(&pdu[6]);
+    memcpy(&dev->status.cur_tag, &pdu[10], WED_TAG_SIZE);
     if (buflen >= sizeof(WEDStatus) + 1)
-        g_status.reboot_count = pdu[10 + WED_TAG_SIZE];
+        dev->status.reboot_count = pdu[10 + WED_TAG_SIZE];
 
 
     printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\tReboots: %u\t",
-            g_szBuild, g_szVersion, g_status.num_log_entries, g_status.battery_level,
-            g_status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, g_status.reboot_count);
+            dev->szBuild, dev->szVersion, dev->status.num_log_entries, dev->status.battery_level,
+            dev->status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, dev->status.reboot_count);
 
-    if (g_status.status & STATUS_UPDATE)
+    if (dev->status.status & STATUS_UPDATE)
         printf(" (Updating) ");
-    if (g_status.status & STATUS_FASTMODE)
+    if (dev->status.status & STATUS_FASTMODE)
         printf(" (Fast Mode) ");
-    else if (g_status.status & STATUS_SLEEPMODE)
+    else if (dev->status.status & STATUS_SLEEPMODE)
         printf(" (Sleep Mode) ");
     else
         printf(" (Slow Mode) ");
-    if (g_status.status & STATUS_CHARGING)
+    if (dev->status.status & STATUS_CHARGING)
         printf(" (Charging) ");
-    if (g_status.status & STATUS_LS_INPROGRESS)
+    if (dev->status.status & STATUS_LS_INPROGRESS)
         printf(" (Light Capture) ");
     printf("\n");
 
@@ -580,7 +547,8 @@ int process_status(uint8_t * buf, ssize_t buflen) {
 }
 
 // i2c result
-int process_debug_i2c(uint8_t * buf, ssize_t buflen) {
+int process_debug_i2c(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
+    dev->state = STATE_COUNT;
     if (buflen < sizeof(WEDDebugI2CResult) + 1)
         return -1;
     uint8_t * pdu = &buf[1];
@@ -599,20 +567,19 @@ int process_debug_i2c(uint8_t * buf, ssize_t buflen) {
 
 // State machine to get necessary information.
 // Discover device current status, and running firmware
-int discover_device() {
-    // TODO: this should go to a stack state-machine instead
+int discover_device(amdev_t * dev) {
 
     uint16_t handle;
 
-    enum DISCOVERY_STATE new_state = STATE_NONE;
-    switch (g_state) {
+    DISCOVERY_STATE new_state = STATE_NONE;
+    switch (dev->state) {
     case STATE_NONE:
         handle = g_char[AMIIGO_UUID_BUILD].value_handle;
         new_state = STATE_BUILD;
         if (handle == 0) {
             // Ignore information
-            g_state = new_state;
-            return discover_device();
+            dev->state = new_state;
+            return discover_device(dev);
         }
         break;
     case STATE_BUILD:
@@ -620,8 +587,8 @@ int discover_device() {
         new_state = STATE_VERSION;
         if (handle == 0) {
             // Ignore information
-            g_state = new_state;
-            return discover_device();
+            dev->state = new_state;
+            return discover_device(dev);
         }
         break;
     case STATE_VERSION:
@@ -636,16 +603,16 @@ int discover_device() {
         return 0; // already handled
         break;
     }
-    g_state = new_state;
+    dev->state = new_state;
 
     // Read the handle of interest
-    int ret = exec_read(handle);
+    int ret = exec_read(dev->sock, handle);
     return ret;
 }
 
 //----------------------------------------------------------------------------------------
 // Process incoming raw data
-int process_data(uint8_t * buf, ssize_t buflen) {
+int process_data(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     int ret = 0;
     struct att_data_list *list = NULL;
     uint16_t handle = 0;
@@ -657,8 +624,8 @@ int process_data(uint8_t * buf, ssize_t buflen) {
             err = buf[4];
         if (err == ATT_ECODE_ATTR_NOT_FOUND) {
             // If no battery information, we do not have status
-            if (g_status.battery_level == 0)
-                discover_device();
+            if (dev->status.battery_level == 0)
+                discover_device(dev);
         } else {
             if (buflen > 1)
                 handle = att_get_u16(&buf[1]);
@@ -668,7 +635,7 @@ int process_data(uint8_t * buf, ssize_t buflen) {
         break;
     case ATT_OP_HANDLE_NOTIFY:
         // Proceed with download
-        process_download(buf, buflen);
+        process_download(dev, buf, buflen);
         break;
     case ATT_OP_READ_BY_TYPE_RESP:
         list = dec_read_by_type_resp((uint8_t *) buf, buflen);
@@ -705,49 +672,41 @@ int process_data(uint8_t * buf, ssize_t buflen) {
 
         // Get the rest of handles
         if (handle != 0 && (handle + 1) < OPT_END_HANDLE) {
-            discover_handles(handle + 1, OPT_END_HANDLE);
+            discover_handles(dev->sock, handle + 1, OPT_END_HANDLE);
         }
         break;
     case ATT_OP_READ_RESP:
-        switch (g_state) {
+        switch (dev->state) {
         case STATE_BUILD:
-            strncpy(g_szBuild, (const char *) &buf[1], buflen - 1);
+            strncpy(dev->szBuild, (const char *) &buf[1], buflen - 1);
             // More to discover
-            discover_device();
+            discover_device(dev);
             break;
         case STATE_VERSION:
-            g_ver.Major = buf[1];
-            g_ver.Minor = buf[2];
-            g_ver.Build = att_get_u16(&buf[3]);
-            g_flat_ver = FW_VERSION(g_ver.Major, g_ver.Minor, g_ver.Build);
-            sprintf(g_szVersion, "%u.%u.%u%s", g_ver.Major, g_ver.Minor, g_ver.Build,
-                    g_flat_ver < FW_VERSION(1,8,89) ? " (< 1.8.89: incompatible config)" : "");
+            dev->ver.Major = buf[1];
+            dev->ver.Minor = buf[2];
+            dev->ver.Build = att_get_u16(&buf[3]);
+            dev->ver_flat = FW_VERSION(dev->ver.Major, dev->ver.Minor, dev->ver.Build);
+            sprintf(dev->szVersion, "%u.%u.%u%s", dev->ver.Major, dev->ver.Minor, dev->ver.Build,
+                    dev->ver_flat < FW_VERSION(1,8,89) ? " (< 1.8.89: incompatible config)" : "");
             // More to discover
-            discover_device();
+            discover_device(dev);
             break;
         case STATE_STATUS:
-            process_status(buf, buflen);
-            // Done with discovery, perform the command
-            if (g_cmd == AMIIGO_CMD_NONE) {
-                g_state = STATE_COUNT;
-            } else {
-                // Now that we have status (e.g. number of logs)
-                //  Start execution of the requested command
-                ret = exec_command();
-            }
+            process_status(dev, buf, buflen);
             break;
         case STATE_DOWNLOAD:
             // This must be keep-alive
-            process_status(buf, buflen);
+            process_status(dev, buf, buflen);
             break;
         case STATE_FWSTATUS:
         case STATE_FWSTATUS_WAIT:
             // Act upon new firmware update status
-            ret = process_fwstatus(buf, buflen);
+            ret = process_fwstatus(dev, buf, buflen);
             break;
         case STATE_I2C:
             // i2c result
-            ret = process_debug_i2c(buf, buflen);
+            ret = process_debug_i2c(dev, buf, buflen);
             break;
         default:
             dump_buffer(buf, buflen);

@@ -9,10 +9,9 @@
 #include <stdint.h>
 #include <unistd.h>
 
-
 #include "cmdparse.h"
 
-extern AMIIGO_CMD g_cmd;
+AMIIGO_CMD g_cmd = AMIIGO_CMD_NONE;
 
 int parse_command(const char * szName) {
     if (strcasecmp(szName, "download") == 0) {

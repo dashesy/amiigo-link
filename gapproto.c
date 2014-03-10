@@ -10,10 +10,15 @@
 #include <stdint.h>
 #include <unistd.h>
 
+
 #include "jni/bluetooth.h"
+#include "jni/hci.h"
+#include "jni/hci_lib.h"
 #include "jni/l2cap.h"
+#include "btio.h"
 #include "att.h"
 
+#include "common.h"
 #include "amidefs.h"
 
 size_t g_buflen; // Established MTU
@@ -116,27 +121,27 @@ int gap_connect(const char * src, const char * dst) {
     struct set_opts opts;
     memset(&opts, 0, sizeof(opts));
 
-    if (strlen(g_dst) == 0) {
+    if (strlen(dst) == 0) {
         fprintf(stderr,
                 "Device address must be specified (use --help to find the usage)\n");
         return -1;
     }
-    if (str2ba(g_dst, &opts.dst)) {
+    if (str2ba(dst, &opts.dst)) {
         fprintf(stderr,
                 "Invalid device address (use --help to find the usage)!\n");
         return -1;
     }
 
-    if (g_src != NULL) {
-        if (!strncmp(g_src, "hci", 3)) {
-            ret = hci_devba(atoi(g_src + 3), &opts.src);
-            if (ret == 0 && g_bVerbose) {
+    if (src != NULL) {
+        if (!strncmp(src, "hci", 3)) {
+            ret = hci_devba(atoi(src + 3), &opts.src);
+            if (ret == 0 && g_opt.verbosity) {
                 char addr[18];
                 ba2str(&opts.src, addr);
                 printf("Source address: %s\n", addr);
             }
         } else {
-            ret = str2ba(g_src, &opts.src);
+            ret = str2ba(src, &opts.src);
         }
         if (ret) {
             fprintf(stderr,
@@ -180,7 +185,7 @@ int gap_connect(const char * src, const char * dst) {
 
     int ready;
     struct timeval tv;
-    fd_set write_fds, read_fds;
+    fd_set write_fds;
     tv.tv_sec = 5;
     tv.tv_usec = 0;
     FD_ZERO(&write_fds);
@@ -215,7 +220,7 @@ int gap_connect(const char * src, const char * dst) {
     g_buflen = (opts.cid == ATT_CID) ? ATT_DEFAULT_LE_MTU : opts.imtu;
 
     printf("Session started ('q' to quit):\n\t"
-            " SRC: %s OMTU: %d IMTU %d CID %d\n\n", g_src, opts.omtu, opts.imtu,
+            " SRC: %s OMTU: %d IMTU %d CID %d\n\n", src, opts.omtu, opts.imtu,
             opts.cid);
 
     return sock;
