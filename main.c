@@ -16,7 +16,6 @@
 #include <ctype.h>
 #include <string.h>
 
-
 #include "amidefs.h"
 #include "amdev.h"
 #include "hcitool.h"
@@ -31,15 +30,6 @@
 // Device and interface to use
 char g_dst[512] = "";
 char g_src[512] = "hci0";
-
-// Amiigo devices to interact with
-amdev_t devices[2];
-
-WEDDebugI2CCmd g_i2c; // i2c debugging
-WEDConfigLS g_config_ls; // Light configuration
-WEDConfigAccel g_config_accel; // Acceleration sensors configuration
-WEDMaintLED g_maint_led; // Blink command
-
 
 FILE * g_logFile = NULL; // file to download logs
 
@@ -283,23 +273,15 @@ int main(int argc, char **argv) {
     int ret;
     time_t start_time, stop_time, download_time;
 
-    //---------- config packets ------------
-    memset(&g_config_ls, 0, sizeof(g_config_ls));
-    memset(&g_config_accel, 0, sizeof(g_config_accel));
-    memset(&g_maint_led, 0, sizeof(g_maint_led));
-    memset(&g_i2c, 0, sizeof(g_i2c));
-
-    // Some defulats
-    g_maint_led.duration = 5;
-    g_maint_led.led = 6;
-    g_maint_led.speed = 1;
-
-    // zero-fill the devices state
-    memset(&devices[0], 0, sizeof(devices));
-
-
     // Initialize the characteristics
     char_init();
+    // Initialize the command configs
+    cmd_init();
+
+    // Amiigo devices to interact with
+    amdev_t devices[2];
+    // zero-fill the devices state
+    memset(&devices[0], 0, sizeof(devices));
 
     // Set parameters based on command line
     do_command_line(argc, argv);

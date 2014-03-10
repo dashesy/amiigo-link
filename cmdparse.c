@@ -13,6 +13,46 @@
 
 AMIIGO_CMD g_cmd = AMIIGO_CMD_NONE;
 
+typedef struct amiigo_config {
+    WEDDebugI2CCmd i2c;          // i2c debugging
+    WEDConfigLS config_ls;       // Light configuration
+    WEDConfigAccel config_accel; // Acceleration sensors configuration
+    WEDMaintLED maint_led;       // Blink command
+} amconfig_t;
+
+amconfig_t g_cfg;
+amconfig_t * g_pcfg = &g_cfg;
+
+// Initialize the command configs to defaults
+void cmd_init(void) {
+    //---------- config packets ------------
+    memset(&g_cfg, 0, sizeof(g_cfg));
+
+    // Some defulats
+    g_cfg.maint_led.duration = 5;
+    g_cfg.maint_led.led = 6;
+    g_cfg.maint_led.speed = 1;
+}
+
+void trim(char *str)
+{
+    int i;
+    int begin = 0;
+    int end = strlen(str) - 1;
+
+    while (isspace(str[begin]))
+        begin++;
+
+    while ((end >= begin) && isspace(str[end]))
+        end--;
+
+    // Shift all characters back to the start of the string array.
+    for (i = begin; i <= end; i++)
+        str[i - begin] = str[i];
+
+    str[i - begin] = '\0'; // Null terminate string.
+}
+
 int parse_command(const char * szName) {
     if (strcasecmp(szName, "download") == 0) {
         g_cmd = AMIIGO_CMD_DOWNLOAD;
@@ -56,11 +96,11 @@ int parse_i2c_write(const char * szArg) {
     while (pch != NULL) {
         arg_count++;
         if (arg_count == 1)
-            g_i2c.address = (uint8)atoi(pch);
+            g_cfg.i2c.address = (uint8)atoi(pch);
         else if (arg_count == 2) {
-            g_i2c.reg = (uint8)atoi(pch);
+            g_cfg.i2c.reg = (uint8)atoi(pch);
         } else if (arg_count == 3) {
-            g_i2c.data = (uint8)atoi(pch);
+            g_cfg.i2c.data = (uint8)atoi(pch);
         } else {
             break;
         }
@@ -70,7 +110,7 @@ int parse_i2c_write(const char * szArg) {
         printf("Invalid i2c address:reg:value format");
         return -1;
     }
-    g_i2c.write = 1;
+    g_cfg.i2c.write = 1;
     g_cmd = AMIIGO_CMD_I2C_WRITE;
     return 0;
 }
@@ -83,9 +123,9 @@ int parse_i2c_read(const char * szArg) {
     while (pch != NULL) {
         arg_count++;
         if (arg_count == 1) {
-            g_i2c.address = (uint8)atoi(pch);
+            g_cfg.i2c.address = (uint8)atoi(pch);
         } else if (arg_count == 2) {
-            g_i2c.reg = (uint8)atoi(pch);
+            g_cfg.i2c.reg = (uint8)atoi(pch);
         } else {
             break;
         }
@@ -95,28 +135,9 @@ int parse_i2c_read(const char * szArg) {
         printf("Invalid i2c address:reg format");
         return -1;
     }
-    g_i2c.write = 0;
+    g_cfg.i2c.write = 0;
     g_cmd = AMIIGO_CMD_I2C_READ;
     return 0;
-}
-
-void trim(char *str)
-{
-    int i;
-    int begin = 0;
-    int end = strlen(str) - 1;
-
-    while (isspace(str[begin]))
-        begin++;
-
-    while ((end >= begin) && isspace(str[end]))
-        end--;
-
-    // Shift all characters back to the start of the string array.
-    for (i = begin; i <= end; i++)
-        str[i - begin] = str[i];
-
-    str[i - begin] = '\0'; // Null terminate string.
 }
 
 int parse_input_file(const char * szName) {
@@ -146,48 +167,48 @@ int parse_input_file(const char * szName) {
         long val = strtol(szVal, NULL, 0);
         //---------- Light ----------------------------
         if (strcasecmp(szParam, "ls_on_time") == 0) {
-            g_config_ls.on_time = (uint8_t) val;
+            g_cfg.config_ls.on_time = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_off_time") == 0) {
-            g_config_ls.off_time = (uint8_t) val;
+            g_cfg.config_ls.off_time = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_fast_interval") == 0) {
             // Seconds between samples in fast mode
-            g_config_ls.fast_interval = (uint16_t) val;
+            g_cfg.config_ls.fast_interval = (uint16_t) val;
         } else if (strcasecmp(szParam, "ls_slow_interval") == 0) {
             // Seconds between samples in slow mode
-            g_config_ls.slow_interval = (uint16_t) val;
+            g_cfg.config_ls.slow_interval = (uint16_t) val;
         } else if (strcasecmp(szParam, "ls_duration") == 0) {
-            g_config_ls.duration = (uint8_t) val;
+            g_cfg.config_ls.duration = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_gain") == 0) {
-            g_config_ls.gain = (uint8_t) val;
+            g_cfg.config_ls.gain = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_leds") == 0) {
-            g_config_ls.leds = (uint8_t) val;
+            g_cfg.config_ls.leds = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_led_drv") == 0) {
-            g_config_ls.led_drv = (uint8_t) val;
+            g_cfg.config_ls.led_drv = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_norecal") == 0) {
-            g_config_ls.norecal = (uint8_t) val;
+            g_cfg.config_ls.norecal = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_debug") == 0) {
-            g_config_ls.debug = (uint8_t) val;
+            g_cfg.config_ls.debug = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_flags") == 0) {
-            g_config_ls.flags = (uint8_t) val;
+            g_cfg.config_ls.flags = (uint8_t) val;
         } else if (strcasecmp(szParam, "ls_movement") == 0) {
-            g_config_ls.movement = (uint8_t) val;
+            g_cfg.config_ls.movement = (uint8_t) val;
         }
         // --------------- Blink ----------------------
         else if (strcasecmp(szParam, "blink_duration") == 0) {
-            g_maint_led.duration = (uint8_t) val;
+            g_cfg.maint_led.duration = (uint8_t) val;
         }
         else if (strcasecmp(szParam, "blink_led") == 0) {
-            g_maint_led.led = (uint8_t) val;
+            g_cfg.maint_led.led = (uint8_t) val;
         }
         else if (strcasecmp(szParam, "blink_speed") == 0) {
-            g_maint_led.speed = (uint8_t) val;
+            g_cfg.maint_led.speed = (uint8_t) val;
         }
         // ---------------- Accel ---------------------
         else if (strcasecmp(szParam, "accel_slow_rate") == 0) {
-            g_config_accel.slow_rate = WEDConfigRateParam(
+            g_cfg.config_accel.slow_rate = WEDConfigRateParam(
                     (uint32_t) atoi(szVal));
         } else if (strcasecmp(szParam, "accel_fast_rate") == 0) {
-            g_config_accel.fast_rate = WEDConfigRateParam(
+            g_cfg.config_accel.fast_rate = WEDConfigRateParam(
                     (uint32_t) atoi(szVal));
         } else {
             fprintf(stderr,

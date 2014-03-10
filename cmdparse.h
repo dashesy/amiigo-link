@@ -12,6 +12,11 @@
 
 extern AMIIGO_CMD g_cmd;
 
+// Parsed config that goes with the command
+extern struct amiigo_config * g_pcfg;
+
+void cmd_init(void);
+
 int parse_command(const char * szName);
 int parse_adapter(const char * szName);
 int parse_device(const char * szName);
