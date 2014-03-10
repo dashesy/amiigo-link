@@ -83,6 +83,14 @@ char g_szFullName[1024] = { 0 };
 int exec_command(int sock) {
     switch (g_cmd) {
     case AMIIGO_CMD_DOWNLOAD:
+        if (g_status.num_log_entries == 0 && !g_live) {
+            // Nothing to download!
+            g_state = STATE_COUNT; // Done with command
+            return 0;
+        }
+
+        g_state = STATE_DOWNLOAD; // Download in progress
+        g_total_logs = g_status.num_log_entries; // How many logs to download
         return exec_download(sock);
         break;
     case AMIIGO_CMD_CONFIGLS:
@@ -100,13 +108,16 @@ int exec_command(int sock) {
     case AMIIGO_CMD_RESET_CPU:
     case AMIIGO_CMD_RESET_LOGS:
     case AMIIGO_CMD_RESET_CONFIGS:
+        g_state = STATE_COUNT; // Done with command
         return exec_reset(sock, g_cmd);
         break;
     case AMIIGO_CMD_FWUPDATE:
+        g_state = STATE_FWSTATUS;
         return exec_fwupdate(sock);
         break;
     case AMIIGO_CMD_I2C_READ:
     case AMIIGO_CMD_I2C_WRITE:
+        g_state = STATE_I2C;
         return exec_debug_i2c(sock);
         break;
     default:

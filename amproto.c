@@ -3,6 +3,12 @@
  *
  * @date March 8, 2014
  * @author: dashesy
+ *
+ * @notes:
+ *
+ *  this is not supposed to keep track of any state
+ *  just a low-level wrapper for gapproto
+ *
  */
 
 #include <errno.h>
@@ -29,7 +35,6 @@ int exec_status(int sock) {
 // Start firmware update procedure
 int exec_fwupdate(int sock) {
     int ret;
-    g_state = STATE_FWSTATUS;
 
     uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
     if (handle == 0)
@@ -46,7 +51,6 @@ int exec_fwupdate(int sock) {
 // Debug i2c by reading or writing register on given address
 int exec_debug_i2c(int sock) {
     int ret;
-    g_state = STATE_I2C;
 
     uint16_t handle = g_char[AMIIGO_UUID_DEBUG].value_handle;
     if (handle == 0)
@@ -65,14 +69,6 @@ int exec_debug_i2c(int sock) {
 
 // Start downloading the log packets
 int exec_download(int sock) {
-    if (g_status.num_log_entries == 0 && !g_live) {
-        // Nothing to download!
-        g_state = STATE_COUNT;
-        return 0;
-    }
-
-    g_state = STATE_DOWNLOAD; // Download in progress
-    g_total_logs = g_status.num_log_entries; // How many logs to download
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
     if (handle == 0)
@@ -99,7 +95,6 @@ int exec_download(int sock) {
 
 // Start configuration of light sensors
 int exec_configls(int sock) {
-    g_state = STATE_COUNT; // Done with command
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
     if (handle == 0)
@@ -119,7 +114,6 @@ int exec_configls(int sock) {
 
 // Start configuration of accel sensors
 int exec_configaccel(int sock) {
-    g_state = STATE_COUNT; // Done with command
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
     if (handle == 0)
@@ -139,7 +133,6 @@ int exec_configaccel(int sock) {
 
 // Start LED blinking
 int exec_blink(int sock) {
-    g_state = STATE_COUNT; // Done with command
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
     if (handle == 0)
@@ -163,7 +156,6 @@ int exec_blink(int sock) {
 
 // Reset config, or CPU or log buffer
 int exec_reset(int sock, enum AMIIGO_CMD cmd) {
-    g_state = STATE_COUNT; // Done with command
 
     uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
     if (handle == 0)
