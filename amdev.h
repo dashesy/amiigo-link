@@ -42,6 +42,7 @@ typedef struct _amdev {
     int bValidAccel;           // If any uncompressed accel is received
     char szBuild[512];         // Firmware build text
     char szVersion[512];       // Firmware version text
+    FILE * logFile;            // file to download logs
 } amdev_t;
 
 #endif // include guard

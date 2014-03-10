@@ -31,8 +31,6 @@
 char g_dst[512] = "";
 char g_src[512] = "hci0";
 
-FILE * g_logFile = NULL; // file to download logs
-
 aml_options_t g_opt; // flags option
 
 // Execute the requested command
@@ -382,13 +380,13 @@ int main(int argc, char **argv) {
 
         // Close the socket
         gap_shutdown(dev->sock);
-    }
 
-    // Close log files
-    if (g_logFile != NULL)
-    {
-        fclose(g_logFile);
-        g_logFile = NULL;
+        // Close log files
+        if (dev->logFile != NULL)
+        {
+            fclose(dev->logFile);
+            dev->logFile = NULL;
+        }
     }
 
     return 0;

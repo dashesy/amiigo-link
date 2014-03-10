@@ -87,10 +87,10 @@ int dump_buffer(uint8_t * buf, ssize_t buflen) {
 }
 
 // Add a single accel log line to the file (and optionally to console)
-void add_accel_line(const WEDLogAccel * logAccel) {
+void add_accel_line(FILE * logFile, const WEDLogAccel * logAccel) {
     char log_line[512] = {0};
     sprintf(log_line, "[\"accelerometer\",[%d,%d,%d]]\n", logAccel->accel[0], logAccel->accel[1], logAccel->accel[2]);
-    fprintf(g_logFile, log_line);
+    fprintf(logFile, log_line);
     if (g_opt.console) {
         printf(log_line);
         fflush(stdout);
@@ -136,8 +136,8 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
         case WED_LOG_TIME:
             packet_len = sizeof(dev->logTime);
 
-            if (g_logFile == NULL)
-                g_logFile = log_file_open();
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open();
 
             dev->logTime.type = log_type;
             dev->logTime.timestamp = att_get_u32(&buf[payload + 1]);
@@ -147,26 +147,26 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             if (reset_detected)
                 printf(" (reboot detected)\n");
 
-            fprintf(g_logFile, "[\"timestamp\",[%u,%u]]\n", dev->logTime.timestamp, dev->logTime.flags);
+            fprintf(dev->logFile, "[\"timestamp\",[%u,%u]]\n", dev->logTime.timestamp, dev->logTime.flags);
 
             break;
         case WED_LOG_ACCEL:
             packet_len = sizeof(dev->logAccel);
 
-            if (g_logFile == NULL)
-                g_logFile = log_file_open();
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open();
 
             dev->bValidAccel = 1;
             dev->logAccel.type = log_type;
             for (i = 0; i < 3; ++i)
                 dev->logAccel.accel[i] = buf[payload + 1 + i];
-            add_accel_line(&dev->logAccel);
+            add_accel_line(dev->logFile, &dev->logAccel);
             break;
         case WED_LOG_LS_CONFIG:
             packet_len = sizeof(logLSConfig);
 
-            if (g_logFile == NULL)
-                g_logFile = log_file_open();
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open();
 
             logLSConfig.type = log_type;
             logLSConfig.dac_on = buf[payload + 1];
@@ -174,7 +174,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             logLSConfig.level_led = buf[payload + 3];
             logLSConfig.gain = buf[payload + 4];
             logLSConfig.log_size = buf[payload + 5];
-            fprintf(g_logFile, "[\"lightsensor_config\",[\"dac_on\",%u],"
+            fprintf(dev->logFile, "[\"lightsensor_config\",[\"dac_on\",%u],"
                     "[\"level_led\",%u],[\"gain\",%u],[\"log_size\",%u]]\n", logLSConfig.dac_on,
                     logLSConfig.level_led, logLSConfig.gain, logLSConfig.log_size);
             break;
@@ -213,61 +213,61 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
                     logLSData.val[i] = att_get_u16(&buf[payload + 1 + i * 2]);
             }
 
-            if (g_logFile == NULL)
-                g_logFile = log_file_open();
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open();
 
             if (field_count)
             {
                 int cnt = 0;
-                fprintf(g_logFile, "[\"lightsensor\"");
+                fprintf(dev->logFile, "[\"lightsensor\"");
                 if (val16 & 1 ? 1 : 0)
-                    fprintf(g_logFile, ",[\"red\",%u]", logLSData.val[cnt++]);
+                    fprintf(dev->logFile, ",[\"red\",%u]", logLSData.val[cnt++]);
                 if (val16 & 2 ? 1 : 0)
-                    fprintf(g_logFile, ",[\"ir\",%u]", logLSData.val[cnt++]);
+                    fprintf(dev->logFile, ",[\"ir\",%u]", logLSData.val[cnt++]);
                 if (val16 & 4 ? 1 : 0)
-                    fprintf(g_logFile, ",[\"off\",%u]", logLSData.val[cnt++]);
-                fprintf(g_logFile, "]\n");
+                    fprintf(dev->logFile, ",[\"off\",%u]", logLSData.val[cnt++]);
+                fprintf(dev->logFile, "]\n");
             }
 
             break;
         case WED_LOG_TEMP:
             packet_len = sizeof(logTemp);
 
-            if (g_logFile == NULL)
-                g_logFile = log_file_open();
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open();
 
             logTemp.type = log_type;
             logTemp.temperature = att_get_u16(&buf[payload + 1]);
-            fprintf(g_logFile, "[\"temperature\",%d]\n", logTemp.temperature);
+            fprintf(dev->logFile, "[\"temperature\",%d]\n", logTemp.temperature);
             break;
         case WED_LOG_TAG:
             packet_len = sizeof(dev->logTag);
 
-            if (g_logFile == NULL)
-                g_logFile = log_file_open();
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open();
 
             dev->logTag.type = log_type;
             dev->logTag.tag = att_get_u32(&buf[payload + 1]);
-            fprintf(g_logFile, "[\"tag\",%u]\n", dev->logTag.tag);
+            fprintf(dev->logFile, "[\"tag\",%u]\n", dev->logTag.tag);
             break;
         case WED_LOG_ACCEL_CMP:
             packet_len = WEDLogAccelCmpSize(&buf[payload]);
 
-            if (g_logFile == NULL)
-                g_logFile = log_file_open();
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open();
 
             logAccelCmp.type = log_type;
             logAccelCmp.count_bits = buf[payload + 1];
             field_count = (logAccelCmp.count_bits & 0xF) + 1;
             dev->read_logs += field_count;
             if (g_opt.leave_compressed) {
-                fprintf(g_logFile, "[\"accelerometer_compressed\",[\"count_bits\",%u],[\"data\",[",logAccelCmp.count_bits);
+                fprintf(dev->logFile, "[\"accelerometer_compressed\",[\"count_bits\",%u],[\"data\",[",logAccelCmp.count_bits);
                 for (i = 0; i < packet_len - 2; ++i) {
-                    fprintf(g_logFile, "%u", buf[payload + 2 + i]);
+                    fprintf(dev->logFile, "%u", buf[payload + 2 + i]);
                     if (i < packet_len - 3)
-                        fprintf(g_logFile, ",");
+                        fprintf(dev->logFile, ",");
                 }
-                fprintf(g_logFile, "]]]\n");
+                fprintf(dev->logFile, "]]]\n");
                 break;
             }
 
@@ -306,13 +306,13 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             if (!dev->bValidAccel)
                 break;
 
-            if (g_logFile == NULL)
-                g_logFile = log_file_open();
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open();
 
             if (nbits == 0) {
                 // It is still, just replicate
                 while (field_count--) {
-                    add_accel_line(&dev->logAccel);
+                    add_accel_line(dev->logFile, &dev->logAccel);
                 }
                 break;
             }
@@ -324,7 +324,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
                     for (i = 0; i < 3; ++i)
                         dev->logAccel.accel[i] = pdu[i];
                     pdu += 3;
-                    add_accel_line(&dev->logAccel);
+                    add_accel_line(dev->logFile, &dev->logAccel);
                 }
             } else {
                 GetBits gb;
@@ -335,7 +335,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
                         int8 diff = cmpGetBits(&gb, nbits);
                         dev->logAccel.accel[i] += diff;
                     }
-                    add_accel_line(&dev->logAccel);
+                    add_accel_line(dev->logFile, &dev->logAccel);
                 }
             }
 

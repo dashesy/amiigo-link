@@ -260,6 +260,9 @@ int gap_recv(int sock, void * buf, size_t buflen) {
 
 // Shutdown the socket
 int gap_shutdown(int sock) {
+    if (sock < 0)
+        return -1;
+
     // Close socket
     shutdown(sock, SHUT_RDWR);
     close(sock);
