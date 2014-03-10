@@ -270,7 +270,7 @@ char kbhit() {
 
 int main(int argc, char **argv) {
     int ret, i;
-    time_t start_time, stop_time, download_time;
+    time_t start_time[MAX_DEV_COUNT], stop_time[MAX_DEV_COUNT], download_time[MAX_DEV_COUNT];
 
     // Initialize the characteristics
     char_init();
@@ -296,48 +296,52 @@ int main(int argc, char **argv) {
             // Start by discovering Amiigo handles
             ret = discover_handles(dev->sock, OPT_START_HANDLE, OPT_END_HANDLE);
             if (ret) {
-                fprintf(stderr, "discover_handles() error\n");
+                fprintf(stderr, "discover_handles() error in %s\n", g_cfg.dst[i]);
                 return -1;
             }
         } else {
             // Use default handles and discover the device
             ret = discover_device(dev);
             if (ret) {
-                fprintf(stderr, "discover_device() error\n");
+                fprintf(stderr, "discover_device() error in %s\n", g_cfg.dst[i]);
                 return -1;
             }
         }
+
+        // Timing of downloads
+        start_time[i]= time(NULL);
+        stop_time[i] = start_time[i];
+        download_time[i] = start_time[i];
     }
 
-    start_time = time(NULL);
-    stop_time = start_time;
-    download_time = start_time;
-
+    int dev_idx = g_cfg.count_dst - 1;
     for (;;) {
         // See if user ended the run
         if (kbhit() == 'q')
             break;
-
-        amdev_t * dev = &devices[0];
+        dev_idx--;
+        if (dev_idx < 0)
+            dev_idx = g_cfg.count_dst - 1;
+        amdev_t * dev = &devices[dev_idx];
 
         // No need to keep-alive during firmware update
         if (dev->state != STATE_FWSTATUS_WAIT) {
-            stop_time = time(NULL);
-            double diff = difftime(stop_time, start_time);
+            stop_time[dev_idx] = time(NULL);
+            double diff = difftime(stop_time[dev_idx], start_time[dev_idx]);
             // Keep-alive by reading status every 60s
             if (diff > 60) {
                 if (g_opt.verbosity)
-                    printf(" (Keep alive)\n");
-                start_time = stop_time;
+                    printf(" (Keep alive %s)\n", g_cfg.dst[dev_idx]);
+                start_time[dev_idx] = stop_time[dev_idx];
                 // Read the status to keep conection alive
                 exec_status(dev->sock);
             }
             if (dev->state == STATE_DOWNLOAD && !g_opt.live) {
-                diff = difftime(stop_time, download_time);
+                diff = difftime(stop_time[dev_idx], download_time[dev_idx]);
                 // Download timeout reached
                 if (diff > 2)
                 {
-                    printf(" (Timeout)\n");
+                    printf(" (Timeou %st)\n", g_cfg.dst[dev_idx]);
                     break;
                 }
             }
@@ -350,7 +354,9 @@ int main(int argc, char **argv) {
         if (len == 0)
             continue;
 
-        download_time = stop_time;
+        // Last time apacket came
+        download_time[dev_idx] = stop_time[dev_idx];
+
         // Process incoming data
         ret = process_data(dev, buf, len);
         if (ret) {
@@ -362,7 +368,7 @@ int main(int argc, char **argv) {
 
         // If all devices have their status read, execute the requested command
         if (dev->status.battery_level > 0) {
-            // Now that we have status (e.g. number of logs)
+            // Now that we have status (e.g. number of logs) of all devices
             //  Start execution of the requested command
             ret = exec_command(dev);
         }
