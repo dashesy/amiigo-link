@@ -8,6 +8,7 @@
 #ifndef AMDEV_H
 #define AMDEV_H
 
+#include <stdio.h>
 #include "amidefs.h"
 
 typedef enum _DISCOVERY_STATE {

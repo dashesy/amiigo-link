@@ -8,6 +8,9 @@
 #ifndef AMCHAR_H
 #define AMCHAR_H
 
+#include "jni/bluetooth.h"
+#include "att.h"
+
 enum {
     STD_UUID_CCC = 0,
     AMIIGO_UUID_SERVICE,
@@ -22,8 +25,6 @@ enum {
     AMIIGO_UUID_COUNT // This must be the last
 };
 
-void char_init(void);
-
-extern struct gatt_char * g_char;
+extern struct gatt_char g_char[AMIIGO_UUID_COUNT];
 
 #endif // include guard

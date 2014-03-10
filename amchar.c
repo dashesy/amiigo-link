@@ -10,8 +10,6 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "att.h"
-
 #include "amchar.h"
 
 struct gatt_char g_char[AMIIGO_UUID_COUNT];

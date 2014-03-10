@@ -23,12 +23,11 @@
 #include "gapproto.h"
 #include "amproto.h"
 #include "amlprocess.h"
-#include "amchar.h"
 #include "cmdparse.h"
 #include "fwupdate.h"
 
-// Device and interface to use
-char g_dst[512] = "";
+extern void char_init(void);
+
 char g_src[512] = "hci0";
 
 aml_options_t g_opt; // flags option
@@ -131,6 +130,7 @@ void show_usage_screen(void) {
 static void do_command_line(int argc, char * const argv[]) {
     // Parse the input
     while (1) {
+
         int c;
         int option_index = 0;
         static struct option long_options[] = {
@@ -155,6 +155,7 @@ static void do_command_line(int argc, char * const argv[]) {
               { 0, 0, 0, 0 } };
 
         c = getopt_long(argc, argv, "vl?", long_options, &option_index);
+
         if (c == -1)
             break;
 
@@ -268,7 +269,7 @@ char kbhit() {
 }
 
 int main(int argc, char **argv) {
-    int ret;
+    int ret, i;
     time_t start_time, stop_time, download_time;
 
     // Initialize the characteristics
@@ -284,10 +285,10 @@ int main(int argc, char **argv) {
     // Set parameters based on command line
     do_command_line(argc, argv);
 
-    {
+    for (i = 0; i < g_cfg.count_dst; ++i) {
         amdev_t * dev = &devices[0];
         // Connect to all devices
-        dev->sock = gap_connect(g_src, g_dst);
+        dev->sock = gap_connect(g_src, g_cfg.dst[i]);
 
         if (g_opt.full) {
             // Start by discovering Amiigo handles
@@ -305,8 +306,6 @@ int main(int argc, char **argv) {
             }
         }
     }
-
-
 
     start_time = time(NULL);
     stop_time = start_time;

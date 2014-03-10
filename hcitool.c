@@ -14,13 +14,9 @@
 #include "jni/bluetooth.h"
 #include "jni/hci.h"
 #include "jni/hci_lib.h"
-#if 0
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/hci.h>
-#include <bluetooth/hci_lib.h>
-#endif
 
 #include "hcitool.h"
+extern char g_src[512];
 
 static volatile int signal_received = 0;
 

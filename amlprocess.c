@@ -12,12 +12,6 @@
 #include <termios.h>
 #include <getopt.h>
 #include <time.h>
-#include <ctype.h>
-#include <string.h>
-
-#include "jni/bluetooth.h"
-
-#include "att.h"
 
 #include "common.h"
 #include "amidefs.h"
@@ -26,10 +20,6 @@
 #include "amchar.h"
 #include "gapproto.h"
 #include "fwupdate.h"
-
-// Downloaded file
-char g_szFullName[1024] = { 0 };
-
 
 /******************************************************************************/
 typedef struct {
@@ -64,14 +54,17 @@ static int8 cmpGetBits(GetBits* gb, uint8 nbits) {
 // Inputs:
 //   szBase - the base name of the log
 FILE * log_file_open() {
+    // Downloaded file
+    char szFullName[1024] = { 0 };
     char szDateTime[256];
     time_t now = time(NULL);
     // Use date-time to avoid overwriting logs
     strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now));
     // Use other metadata to distinguish each log
-    sprintf(g_szFullName, "Log_%s.log", szDateTime);
+    sprintf(szFullName, "Log_%s.log", szDateTime);
+    printf("\n downloading %s ...\n", szFullName);
 
-    FILE * fp = fopen(g_szFullName, "w");
+    FILE * fp = fopen(szFullName, "w");
     return fp;
 }
 
@@ -362,10 +355,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
         printf("\rdownloading ... %u out of %u  (%2.0f%%)", dev->read_logs,
                 dev->total_logs, (100.0 * dev->read_logs) / dev->total_logs);
         if (dev->read_logs >= dev->total_logs || dev->status.num_log_entries == 0)
-        {
-            printf("\n %s finished downloading\n", g_szFullName);
             dev->state = STATE_COUNT; // Done with command
-        }
         fflush(stdout);
     }
 

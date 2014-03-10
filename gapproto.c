@@ -121,7 +121,7 @@ int gap_connect(const char * src, const char * dst) {
     struct set_opts opts;
     memset(&opts, 0, sizeof(opts));
 
-    if (strlen(dst) == 0) {
+    if (dst == NULL || strlen(dst) == 0) {
         fprintf(stderr,
                 "Device address must be specified (use --help to find the usage)\n");
         return -1;

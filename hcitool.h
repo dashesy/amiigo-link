@@ -10,6 +10,4 @@
 
 int do_lescan();
 
-extern char g_src[512];
-
 #endif /* HCITOOL_H_ */

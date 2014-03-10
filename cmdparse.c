@@ -8,20 +8,16 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
 
+#include "amcmd.h"
 #include "cmdparse.h"
 
 AMIIGO_CMD g_cmd = AMIIGO_CMD_NONE;
-
-typedef struct amiigo_config {
-    WEDDebugI2CCmd i2c;          // i2c debugging
-    WEDConfigLS config_ls;       // Light configuration
-    WEDConfigAccel config_accel; // Acceleration sensors configuration
-    WEDMaintLED maint_led;       // Blink command
-} amconfig_t;
-
-amconfig_t g_cfg;
-amconfig_t * g_pcfg = &g_cfg;
+amcfg_t g_cfg;
+extern char g_src[512];
 
 // Initialize the command configs to defaults
 void cmd_init(void) {
@@ -83,7 +79,26 @@ int parse_adapter(const char * szName) {
 }
 
 int parse_device(const char * szName) {
-    strcpy(g_dst, szName);
+
+    char * str = strdup(szName);
+
+    char * pch;
+    pch = strtok (str, ",");
+    int dev_count = 0;
+    while (pch != NULL) {
+        if (dev_count >= MAX_DEV_COUNT) {
+            fprintf(stderr, "Maximum of %d devices can be connected to", MAX_DEV_COUNT);
+            return -1;
+        }
+        g_cfg.dst[dev_count] = pch;
+        dev_count++;
+        pch = strtok (NULL, ",");
+    }
+    if (dev_count == 0) {
+        fprintf(stderr, "Invalid device address");
+        return -1;
+    }
+    g_cfg.count_dst = dev_count;
     return 0;
 }
 
@@ -107,7 +122,7 @@ int parse_i2c_write(const char * szArg) {
         pch = strtok (NULL, ":");
     }
     if (arg_count != 3) {
-        printf("Invalid i2c address:reg:value format");
+        fprintf(stderr, "Invalid i2c address:reg:value format");
         return -1;
     }
     g_cfg.i2c.write = 1;

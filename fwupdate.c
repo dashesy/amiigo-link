@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <termios.h>
 #include <getopt.h>
@@ -18,7 +19,9 @@
 #include "common.h"
 #include "amidefs.h"
 #include "amdev.h"
-#include "cmdparse.h"
+#include "amchar.h"
+#include "gapproto.h"
+#include "amcmd.h"
 
 #define FWUP_HDR_ID 0x0101
 

@@ -14,11 +14,14 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #include "amidefs.h"
+#include "common.h"
+#include "gapproto.h"
 #include "amproto.h"
 #include "amchar.h"
-#include "cmdparse.h"
+#include "amcmd.h"
 
 // Read the status (this is called also for keep-alive)
 int exec_status(int sock) {
@@ -58,7 +61,7 @@ int exec_debug_i2c(int sock) {
     if (handle == 0)
         return -1; // Not ready yet
 
-    ret = exec_write(sock, handle, (uint8_t *) &g_pcfg->i2c, sizeof(g_pcfg->i2c));
+    ret = exec_write(sock, handle, (uint8_t *) &g_cfg.i2c, sizeof(g_cfg.i2c));
     if (ret)
         return -1;
 
@@ -105,7 +108,7 @@ int exec_configls(int sock) {
     WEDConfig config;
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_LS;
-    config.lightsensor = g_pcfg->config_ls;
+    config.lightsensor = g_cfg.config_ls;
 
     int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
@@ -124,7 +127,7 @@ int exec_configaccel(int sock) {
     WEDConfig config;
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_ACCEL;
-    config.accel = g_pcfg->config_accel;
+    config.accel = g_cfg.config_accel;
 
     int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
@@ -143,7 +146,7 @@ int exec_blink(int sock) {
     WEDConfigMaint config_maint;
     memset(&config_maint, 0, sizeof(config_maint));
     config_maint.command = WED_MAINT_BLINK_LED;
-    config_maint.led = g_pcfg->maint_led;
+    config_maint.led = g_cfg.maint_led;
     WEDConfig config;
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_MAINT;
