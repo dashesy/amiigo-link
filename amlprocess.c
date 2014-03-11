@@ -240,7 +240,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
                 dev->logFile = log_file_open();
 
             dev->logTag.type = log_type;
-            dev->logTag.tag = att_get_u32(&buf[payload + 1]);
+            memcpy(&dev->logTag.tag, &buf[payload + 1], 4);
             fprintf(dev->logFile, "[\"tag\",%u]\n", dev->logTag.tag);
             break;
         case WED_LOG_ACCEL_CMP:
