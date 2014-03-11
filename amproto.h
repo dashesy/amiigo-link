@@ -17,6 +17,7 @@ int exec_download(int sock);
 int exec_configls(int sock);
 int exec_configaccel(int sock);
 int exec_blink(int sock);
+int exec_rename(int sock);
 int exec_reset(int sock, AMIIGO_CMD cmd);
 int discover_handles(int sock, uint16_t start_handle, uint16_t end_handle);
 

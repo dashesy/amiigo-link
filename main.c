@@ -76,6 +76,10 @@ int exec_command(amdev_t * dev) {
         dev->state = STATE_I2C;
         return exec_debug_i2c(dev->sock);
         break;
+    case AMIIGO_CMD_RENAME:
+        dev->state = STATE_COUNT; // Done with command
+        return exec_rename(dev->sock);
+        break;
     default:
         return 0;
         break;

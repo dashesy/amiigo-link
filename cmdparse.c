@@ -155,16 +155,27 @@ int parse_i2c_read(const char * szArg) {
     return 0;
 }
 
-// Parse a flag
-int parse_config_flag(const char * szParam) {
-    return 0;
+// Parse a single parameter
+int parse_config_single(const char * szParam) {
+    int err = 0;
+    switch (g_cmd) {
+    case AMIIGO_CMD_RENAME:
+        if (strlen(szParam) > DEV_NAME_LEN)
+            return -1;
+        strcpy(&g_cfg.name.name[0], szParam);
+        break;
+    default:
+        err = -1;
+        break;
+    }
+    return err;
 }
 
 // Parse param = value pairs
 int set_config_pairs(const char * szParam, const char * szVal) {
 
     if (szVal != NULL || szVal[0] == 0 || isspace(szVal[0]))
-        return parse_config_flag(szParam);
+        return parse_config_single(szParam);
 
     long val = strtol(szVal, NULL, 0);
     //---------- Light ----------------------------
@@ -212,6 +223,14 @@ int set_config_pairs(const char * szParam, const char * szVal) {
     } else if (strcasecmp(szParam, "accel_fast_rate") == 0) {
         g_cfg.config_accel.fast_rate = WEDConfigRateParam(
                 (uint32_t) atoi(szVal));
+    }
+    // ---------------- rename ---------------------
+    else if (strcasecmp(szParam, "name") == 0) {
+        if (strlen(szVal) > DEV_NAME_LEN) {
+            fprintf(stderr, "Name cannot be more than %d characters", DEV_NAME_LEN);
+            return -1;
+        }
+        strcpy(&g_cfg.name.name[0], szVal);
     } else {
         fprintf(stderr,
                 "Configuration parameter %s not recognized!\n",
@@ -226,7 +245,7 @@ int parse_one_pair(char * szLine) {
     char * pch;
     pch = strtok (szLine, "=");
     if (pch == NULL)
-        return parse_config_flag(szLine);
+        return parse_config_single(szLine);
 
     return set_config_pairs(szLine, pch);
 }
@@ -261,6 +280,10 @@ int parse_input_file(const char * szName) {
     char szVal[256];
     FILE * fp = fopen(szName, "r");
     if (fp == NULL) {
+        // Try it as a single param
+        int err = parse_config_single(szName);
+        if (err == 0)
+            return 0;
         fprintf(stderr, "Configuration file (%s) not accessible!\n", szName);
         return -1;
     }

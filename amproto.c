@@ -159,6 +159,25 @@ int exec_blink(int sock) {
     return 0;
 }
 
+// Rename the WED
+int exec_rename(int sock) {
+
+    uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    WEDConfig config;
+    memset(&config, 0, sizeof(config));
+    config.config_type = WED_CFG_NAME;
+    config.name = g_cfg.name;
+
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    if (ret)
+        return -1;
+
+    return 0;
+}
+
 // Reset config, or CPU or log buffer
 int exec_reset(int sock, AMIIGO_CMD cmd) {
 

@@ -22,6 +22,7 @@ typedef enum _AMIIGO_CMD {
     AMIIGO_CMD_BLINK,         // Configure a single blink
     AMIIGO_CMD_I2C_READ,      // Read i2c address and register
     AMIIGO_CMD_I2C_WRITE,     // Write to i2c address and register
+    AMIIGO_CMD_RENAME,        // Rename the WED
 } AMIIGO_CMD;
 
 #define MAX_DEV_COUNT   10    // Maximum number of devices to work with
@@ -29,6 +30,7 @@ typedef struct amiigo_config {
     WEDDebugI2CCmd i2c;          // i2c debugging
     WEDConfigLS config_ls;       // Light configuration
     WEDConfigAccel config_accel; // Acceleration sensors configuration
+    WEDConfigName name;          // WED name
     WEDMaintLED maint_led;       // Blink command
     // Device and interface to use
     int count_dst;
