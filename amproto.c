@@ -179,9 +179,7 @@ int exec_tag(int sock) {
     if (tag == 0) {
         tag = (uint32_t)(time(NULL) & 0xFFFFFFFF);
         memcpy(&config.general.tag[0], &tag, 4);
-    }
-    if (g_opt.verbosity) {
-        printf("Write tag %u\n", tag);
+        printf("Time tag %u\n", tag);
     }
 
     int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.general));
