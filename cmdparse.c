@@ -238,7 +238,6 @@ int set_config_pairs(const char * szParam, const char * szVal) {
     }
     // ---------------- tag ---------------------
     else if (strcasecmp(szParam, "tag") == 0) {
-        g_cfg.general.flags |= CFG_WRITE_TAG;
         uint32_t uval = (uint32_t)val;
         memcpy(&g_cfg.general.tag[0], &uval, 4);
     } else {

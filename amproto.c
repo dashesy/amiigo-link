@@ -170,6 +170,7 @@ int exec_tag(int sock) {
     WEDConfig config;
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_GENERAL;
+    g_cfg.general.flags |= CFG_WRITE_TAG;
     config.general = g_cfg.general;
 
     uint32_t tag;
@@ -179,6 +180,10 @@ int exec_tag(int sock) {
         tag = (uint32_t)(time(NULL) & 0xFFFFFFFF);
         memcpy(&config.general.tag[0], &tag, 4);
     }
+    if (g_opt.verbosity) {
+        printf("Write tag %u\n", tag);
+    }
+
     int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
         return -1;
