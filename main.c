@@ -107,6 +107,13 @@ void show_usage_screen(void) {
             "    Amiigo device(s) to connect to, default is shoepod then wristband.\n"
             "    Example: --b 90:59:AF:04:32:82\n"
             "    Use --lescan to find the UUID list\n"
+            "  --compressed Leave logs in compressed form.\n"
+            "  --raw Download logs in raw format (no compression).\n"
+            "  -l, --live Live download as a stream.\n"
+            "    Hit `q` to end the stream.\n"
+            "  --print\n"
+            "    Print accelerometer to console as well as the log file.\n"
+            " Command:\n"
             "  --lescan \n"
             "    Low energy scan (needs root priviledge)\n"
             "  --c, --command cmd \n"
@@ -126,19 +133,14 @@ void show_usage_screen(void) {
             "  --input filename|param1=val1[,...]\n"
             "    Configuration file to use for given command.\n"
             "    Or sequence to specify parameters on command line.\n"
-            "  -l, --live Live download as a stream.\n"
-            "    Hit `q` to end the stream.\n"
-            "  --print\n"
-            "    Print accelerometer to console as well as the log file.\n"
             "  --fwupdate file\n"
             "    Firmware image file to to use for update.\n"
             "  --i2c_read address:reg\n"
             "    Read i2c address and register (debugging only).\n"
             "  --i2c_write address:reg:value\n"
             "    Write value to i2c address and register (debugging only).\n"
-            "  --compressed Leave logs in compressed form.\n"
-            "  --raw Download logs in raw format (no compression).\n"
-            "  --help         Display this usage screen\n");
+            "  --help         Display this usage screen\n"
+            "Output: (optional) log file name for download\n");
     printf("\namlink is Copyright Amiigo inc\n");
 }
 
