@@ -62,7 +62,7 @@ FILE * log_file_open() {
     strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now));
     // Use other metadata to distinguish each log
     sprintf(szFullName, "Log_%s.log", szDateTime);
-    printf("\n downloading %s ...\n", szFullName);
+    printf("\ndownloading %s ...\n", szFullName);
 
     FILE * fp = fopen(szFullName, "w");
     return fp;
@@ -304,9 +304,8 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
 
             if (nbits == 0) {
                 // It is still, just replicate
-                while (field_count--) {
+                while (field_count--)
                     add_accel_line(dev->logFile, &dev->logAccel);
-                }
                 break;
             }
             pdu = &buf[payload];
@@ -354,9 +353,9 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     if (!g_opt.live) {
         printf("\rdownloading ... %u out of %u  (%2.0f%%)", dev->read_logs,
                 dev->total_logs, (100.0 * dev->read_logs) / dev->total_logs);
+        fflush(stdout);
         if (dev->read_logs >= dev->total_logs || dev->status.num_log_entries == 0)
             dev->state = STATE_COUNT; // Done with command
-        fflush(stdout);
     }
 
     return 0;
@@ -376,7 +375,7 @@ int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
 
     uint32_t tag;
     memcpy(&tag, &dev->status.cur_tag[0], 4);
-    printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\tReboots: %u\tTag: %15u",
+    printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\tReboots: %u\tTag: %10u",
             dev->szBuild, dev->szVersion, dev->status.num_log_entries, dev->status.battery_level,
             dev->status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, dev->status.reboot_count, tag);
 

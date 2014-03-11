@@ -170,8 +170,8 @@ int exec_tag(int sock) {
     WEDConfig config;
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_GENERAL;
-    g_cfg.general.flags |= CFG_WRITE_TAG;
     config.general = g_cfg.general;
+    config.general.flags |= CFG_WRITE_TAG;
 
     uint32_t tag;
     memcpy(&tag, &config.general.tag[0], 4);

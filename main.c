@@ -34,6 +34,7 @@ aml_options_t g_opt; // flags option
 
 // Execute the requested command
 int exec_command(amdev_t * dev) {
+    dev->started = 1;
     switch (g_cmd) {
     case AMIIGO_CMD_NONE:
         dev->state = STATE_COUNT; // Done with command
@@ -377,7 +378,7 @@ int main(int argc, char **argv) {
         }
 
         // If all devices have their status read, execute the requested command
-        if (dev->status.battery_level > 0 && dev->state != STATE_COUNT) {
+        if (dev->status.battery_level > 0 && !dev->state != STATE_COUNT && !dev->started) {
             // Now that we have status (e.g. number of logs) of all devices
             //  Start execution of the requested command
             ret = exec_command(dev);
