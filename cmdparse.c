@@ -183,11 +183,7 @@ int set_config_pairs(const char * szParam, const char * szVal) {
 
     long val = strtol(szVal, NULL, 0);
     //---------- Light ----------------------------
-    if (strcasecmp(szParam, "ls_on_time") == 0) {
-        g_cfg.config_ls.on_time = (uint8_t) val;
-    } else if (strcasecmp(szParam, "ls_off_time") == 0) {
-        g_cfg.config_ls.off_time = (uint8_t) val;
-    } else if (strcasecmp(szParam, "ls_fast_interval") == 0) {
+    if (strcasecmp(szParam, "ls_fast_interval") == 0) {
         // Seconds between samples in fast mode
         g_cfg.config_ls.fast_interval = (uint16_t) val;
     } else if (strcasecmp(szParam, "ls_slow_interval") == 0) {
@@ -195,14 +191,6 @@ int set_config_pairs(const char * szParam, const char * szVal) {
         g_cfg.config_ls.slow_interval = (uint16_t) val;
     } else if (strcasecmp(szParam, "ls_duration") == 0) {
         g_cfg.config_ls.duration = (uint8_t) val;
-    } else if (strcasecmp(szParam, "ls_gain") == 0) {
-        g_cfg.config_ls.gain = (uint8_t) val;
-    } else if (strcasecmp(szParam, "ls_leds") == 0) {
-        g_cfg.config_ls.leds = (uint8_t) val;
-    } else if (strcasecmp(szParam, "ls_led_drv") == 0) {
-        g_cfg.config_ls.led_drv = (uint8_t) val;
-    } else if (strcasecmp(szParam, "ls_norecal") == 0) {
-        g_cfg.config_ls.norecal = (uint8_t) val;
     } else if (strcasecmp(szParam, "ls_debug") == 0) {
         g_cfg.config_ls.debug = (uint8_t) val;
     } else if (strcasecmp(szParam, "ls_flags") == 0) {

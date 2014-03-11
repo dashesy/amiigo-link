@@ -176,11 +176,10 @@ enum {
 
 #define CONFIGLS_FLAGS_START_NOW 0x80
 #define CONFIGLS_FLAGS_ABORT     0x40
-#define CONFIGLS_MODULATE_TIMING 0x20
 
 typedef struct {
-	uint8 on_time;   // LED on time before ADC reading, in msec
-	uint8 off_time;  // LED off time, in msec. if 0, LED will remain on the entire duration
+	uint8 unused0;
+	uint8 unused1;
 
 	// Samples will be taken at the above rate for 'duration' seconds
 	// every 'interval' seconds. Sampling is disabled if interval is 0.
@@ -189,19 +188,15 @@ typedef struct {
 	uint16 sleep_interval;
 	uint8 duration;
 
-	uint8 gain;      // 0-127, MAX gain the system will try and calatrage to
-
-	// WARRNING: DO NOT set the off time to 0 and then request the off reading, it will lockup.
-	uint8 leds;      // bit 0 = sample red LED, bit 1 = sample IR LED, bit 2 = sample w/LEDs off
-	// WARRING: DO NOT drive the LED past 32 with a off time of 0. You will burn out the RED LED.
-	// IR LED may be driven higher, but testing is needed to verify. The spec says continious current of 65mA is allowed, but it may get hot.
-	uint8 led_drv;   // 1 to 63, MAX LED drive strength
-	uint8 norecal;   // 1 = Do NOT auto shift DAC when readings get too close to the min/max
+	uint8 unused2;
+	uint8 unused3;
+	uint8 unused4;
+	uint8 unused5;
 
 	uint8 debug;     // Console output debug level, set to 0 for normal operation
-	uint8 unused1;   // unused
-	uint8 unused2;   // Which refernce voltage for the DAC
-	uint8 movement;  // average movement level at wich starting a reading is allowed. 0=don't check
+	uint8 unused6;
+	uint8 unused7;
+	uint8 movement;  // average movement level at wich starting a reading is allowed
 	uint8 flags;     // Contol Bits
 } PACKED WEDConfigLS;
 
@@ -226,6 +221,7 @@ typedef enum {
 	WED_MAINT_RESET,        // Reset CPU
 	WED_MAINT_TAG,          // Insert WEDLogTag entry into log
 	WED_MAINT_BLINK_LED,    // blink USER
+	WED_MAINT_SYSTEM_LED,   // Enable system LED
 } PACKED WED_MAINT_CMD;
 
 typedef struct {
@@ -240,12 +236,17 @@ typedef struct {
 } PACKED WEDMaintLED;
 
 typedef struct {
+	uint8 enable;       // set to non-zero to enable the on board system LED
+} PACKED WEDMMaintSystemLED;
+
+typedef struct {
 	// WED_MAINT_CMD value
 	uint8 command;
 
 	union {
 		WEDMaintTag tag;
 		WEDMaintLED led;
+		WEDMMaintSystemLED sysled;
 	};
 } PACKED WEDConfigMaint;
 
@@ -338,6 +339,7 @@ typedef enum {
 	WED_LOG_TEMP,
 	WED_LOG_TAG,
 	WED_LOG_ACCEL_CMP,
+	WED_LOG_COUNT,
 } WED_LOG_TYPE;
 
 #define WED_TAG_BITS 0x1F
@@ -470,6 +472,16 @@ typedef struct {
 	// Tag data from WED_MAINT_TAG command
 	uint8 tag[WED_TAG_SIZE];
 } PACKED WEDLogTag;
+
+// This LOG entry is placed into the log on a reboot after a scan is done.
+typedef struct {
+	uint8 type; // WED_LOG_COUNT
+
+	uint32 OldLastKnownCount;
+	uint32 CurrentScannedCount;
+	uint32 TicksToReboot;
+} PACKED WEDLogCount;
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Firmware Update
