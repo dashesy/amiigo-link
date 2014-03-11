@@ -155,7 +155,108 @@ int parse_i2c_read(const char * szArg) {
     return 0;
 }
 
+// Parse a flag
+int parse_config_flag(const char * szParam) {
+    return 0;
+}
+
+// Parse param = value pairs
+int set_config_pairs(const char * szParam, const char * szVal) {
+
+    if (szVal != NULL || szVal[0] == NULL || isspace(szVal[0]))
+        return parse_config_flag(szParam);
+
+    long val = strtol(szVal, NULL, 0);
+    //---------- Light ----------------------------
+    if (strcasecmp(szParam, "ls_on_time") == 0) {
+        g_cfg.config_ls.on_time = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_off_time") == 0) {
+        g_cfg.config_ls.off_time = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_fast_interval") == 0) {
+        // Seconds between samples in fast mode
+        g_cfg.config_ls.fast_interval = (uint16_t) val;
+    } else if (strcasecmp(szParam, "ls_slow_interval") == 0) {
+        // Seconds between samples in slow mode
+        g_cfg.config_ls.slow_interval = (uint16_t) val;
+    } else if (strcasecmp(szParam, "ls_duration") == 0) {
+        g_cfg.config_ls.duration = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_gain") == 0) {
+        g_cfg.config_ls.gain = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_leds") == 0) {
+        g_cfg.config_ls.leds = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_led_drv") == 0) {
+        g_cfg.config_ls.led_drv = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_norecal") == 0) {
+        g_cfg.config_ls.norecal = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_debug") == 0) {
+        g_cfg.config_ls.debug = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_flags") == 0) {
+        g_cfg.config_ls.flags = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_movement") == 0) {
+        g_cfg.config_ls.movement = (uint8_t) val;
+    }
+    // --------------- Blink ----------------------
+    else if (strcasecmp(szParam, "blink_duration") == 0) {
+        g_cfg.maint_led.duration = (uint8_t) val;
+    }
+    else if (strcasecmp(szParam, "blink_led") == 0) {
+        g_cfg.maint_led.led = (uint8_t) val;
+    }
+    else if (strcasecmp(szParam, "blink_speed") == 0) {
+        g_cfg.maint_led.speed = (uint8_t) val;
+    }
+    // ---------------- Accel ---------------------
+    else if (strcasecmp(szParam, "accel_slow_rate") == 0) {
+        g_cfg.config_accel.slow_rate = WEDConfigRateParam(
+                (uint32_t) atoi(szVal));
+    } else if (strcasecmp(szParam, "accel_fast_rate") == 0) {
+        g_cfg.config_accel.fast_rate = WEDConfigRateParam(
+                (uint32_t) atoi(szVal));
+    } else {
+        fprintf(stderr,
+                "Configuration parameter %s not recognized!\n",
+                szParam);
+        return -1;
+    }
+    return 0;
+}
+
+// Parse one line of param or param=value
+int parse_one_pair(char * szLine) {
+    char * pch;
+    pch = strtok (szLine, "=");
+    if (pch == NULL)
+        return parse_config_flag(szLine);
+
+    return set_config_pairs(szLine, pch);
+}
+
+// Parse single command line
+int parse_input_line(const char * szName) {
+    int err = 0;
+    char * szArg = strdup(szName);
+
+    char * pch;
+    pch = strtok (szArg, ",");
+    int dev_count = 0;
+    while (pch != NULL) {
+        err = parse_one_pair(pch);
+        if (err)
+            break;
+        pch = strtok (NULL, ",");
+    }
+
+    free(szArg);
+    return err;
+}
+
+// Parse file
 int parse_input_file(const char * szName) {
+
+    // If it is detected to be sequence of param=value[,...] parse the line
+    if (strpbrk(szName, "=,"))
+        return parse_input_line(szName);
+
     char szCmd[256];
     char szParam[256];
     char szVal[256];
@@ -179,58 +280,10 @@ int parse_input_file(const char * szName) {
             continue;
         }
 
-        long val = strtol(szVal, NULL, 0);
-        //---------- Light ----------------------------
-        if (strcasecmp(szParam, "ls_on_time") == 0) {
-            g_cfg.config_ls.on_time = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_off_time") == 0) {
-            g_cfg.config_ls.off_time = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_fast_interval") == 0) {
-            // Seconds between samples in fast mode
-            g_cfg.config_ls.fast_interval = (uint16_t) val;
-        } else if (strcasecmp(szParam, "ls_slow_interval") == 0) {
-            // Seconds between samples in slow mode
-            g_cfg.config_ls.slow_interval = (uint16_t) val;
-        } else if (strcasecmp(szParam, "ls_duration") == 0) {
-            g_cfg.config_ls.duration = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_gain") == 0) {
-            g_cfg.config_ls.gain = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_leds") == 0) {
-            g_cfg.config_ls.leds = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_led_drv") == 0) {
-            g_cfg.config_ls.led_drv = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_norecal") == 0) {
-            g_cfg.config_ls.norecal = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_debug") == 0) {
-            g_cfg.config_ls.debug = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_flags") == 0) {
-            g_cfg.config_ls.flags = (uint8_t) val;
-        } else if (strcasecmp(szParam, "ls_movement") == 0) {
-            g_cfg.config_ls.movement = (uint8_t) val;
-        }
-        // --------------- Blink ----------------------
-        else if (strcasecmp(szParam, "blink_duration") == 0) {
-            g_cfg.maint_led.duration = (uint8_t) val;
-        }
-        else if (strcasecmp(szParam, "blink_led") == 0) {
-            g_cfg.maint_led.led = (uint8_t) val;
-        }
-        else if (strcasecmp(szParam, "blink_speed") == 0) {
-            g_cfg.maint_led.speed = (uint8_t) val;
-        }
-        // ---------------- Accel ---------------------
-        else if (strcasecmp(szParam, "accel_slow_rate") == 0) {
-            g_cfg.config_accel.slow_rate = WEDConfigRateParam(
-                    (uint32_t) atoi(szVal));
-        } else if (strcasecmp(szParam, "accel_fast_rate") == 0) {
-            g_cfg.config_accel.fast_rate = WEDConfigRateParam(
-                    (uint32_t) atoi(szVal));
-        } else {
-            fprintf(stderr,
-                    "Configuration parameter %s in %s not recognized!\n",
-                    szParam, szName);
+        int err = set_config_pairs(szParam, szVal);
+        if (err) {
             fclose(fp);
-            return -1;
+            return err;
         }
     }
 
