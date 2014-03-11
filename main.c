@@ -80,6 +80,10 @@ int exec_command(amdev_t * dev) {
         dev->state = STATE_COUNT; // Done with command
         return exec_rename(dev->sock);
         break;
+    case AMIIGO_CMD_TAG:
+        dev->state = STATE_COUNT; // Done with command
+        return exec_tag(dev->sock);
+        break;
     default:
         return 0;
         break;
@@ -114,6 +118,7 @@ void show_usage_screen(void) {
             "       resetcpu: restart the board\n"
             "       resetconfigs: set all configs to default\n"
             "       rename: rename the device\n"
+            "       tag: set a tag\n"
             "  --input filename|param1=val1[,...]\n"
             "    Configuration file to use for given command.\n"
             "    Or sequence to specify parameters on command line.\n"

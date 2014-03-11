@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "amidefs.h"
 #include "common.h"
@@ -152,6 +153,32 @@ int exec_blink(int sock) {
     config.config_type = WED_CFG_MAINT;
     config.maint = config_maint;
 
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    if (ret)
+        return -1;
+
+    return 0;
+}
+
+// Start LED blinking
+int exec_tag(int sock) {
+
+    uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    WEDConfig config;
+    memset(&config, 0, sizeof(config));
+    config.config_type = WED_CFG_GENERAL;
+    config.general = g_cfg.general;
+
+    uint32_t tag;
+    memcpy(&tag, &config.general.tag[0], 4);
+    // Override if 0 to the most recent time
+    if (tag == 0) {
+        tag = (uint32_t)(time(NULL) & 0xFFFFFFFF);
+        memcpy(&config.general.tag[0], &tag, 4);
+    }
     int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
     if (ret)
         return -1;

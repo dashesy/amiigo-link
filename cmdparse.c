@@ -231,6 +231,12 @@ int set_config_pairs(const char * szParam, const char * szVal) {
             return -1;
         }
         strcpy(&g_cfg.name.name[0], szVal);
+    }
+    // ---------------- tag ---------------------
+    else if (strcasecmp(szParam, "tag") == 0) {
+        g_cfg.general.flags |= CFG_WRITE_TAG;
+        uint32_t uval = (uint32_t)val;
+        memcpy(&g_cfg.general.tag, &uval, 4);
     } else {
         fprintf(stderr,
                 "Configuration parameter %s not recognized!\n",
@@ -271,8 +277,9 @@ int parse_input_line(const char * szName) {
 // Parse file
 int parse_input_file(const char * szName) {
 
+    int is_path = (strpbrk(szName, "./") != NULL);
     // If it is detected to be sequence of param=value[,...] parse the line
-    if (strpbrk(szName, "=,"))
+    if (strpbrk(szName, "=,") && !is_path)
         return parse_input_line(szName);
 
     char szCmd[256];
@@ -281,9 +288,11 @@ int parse_input_file(const char * szName) {
     FILE * fp = fopen(szName, "r");
     if (fp == NULL) {
         // Try it as a single param
-        int err = parse_config_single(szName);
-        if (err == 0)
-            return 0;
+        if (!is_path) {
+            int err = parse_config_single(szName);
+            if (err == 0)
+                return 0;
+        }
         fprintf(stderr, "Configuration file (%s) not accessible!\n", szName);
         return -1;
     }
