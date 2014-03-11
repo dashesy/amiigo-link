@@ -120,6 +120,8 @@ void show_usage_screen(void) {
             "       resetconfigs: set all configs to default\n"
             "       rename: rename the device\n"
             "       tag: set a tag\n"
+            "  --mode fast|slow|sleep\n"
+            "    Switch to slow or fast mode after tag\n"
             "  --input filename|param1=val1[,...]\n"
             "    Configuration file to use for given command.\n"
             "    Or sequence to specify parameters on command line.\n"
@@ -159,6 +161,7 @@ static void do_command_line(int argc, char * const argv[]) {
               { "c", 1, 0, 'x' },
               { "command", 1, 0, 'x' },
               { "input", 1, 0, 'f' },
+              { "mode", 1, 0, 'm'},
               { "print", 0, 0, 'o' },
               { "i2c_read", 1, 0, 'd'},
               { "i2c_write", 1, 0, 'w'},
@@ -220,6 +223,11 @@ static void do_command_line(int argc, char * const argv[]) {
 
         case 'x':
             if (parse_command(optarg))
+                exit(1);
+            break;
+
+        case 'm':
+            if (parse_mode(optarg))
                 exit(1);
             break;
 

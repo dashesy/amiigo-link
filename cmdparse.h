@@ -16,6 +16,7 @@ int parse_device(const char * szName);
 int parse_i2c_write(const char * szArg);
 int parse_i2c_read(const char * szArg);
 int parse_input_file(const char * szName) ;
+int parse_mode(const char * szName);
 
 
 #endif // include guard
