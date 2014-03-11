@@ -201,6 +201,11 @@ int exec_rename(int sock) {
     config.config_type = WED_CFG_NAME;
     config.name = g_cfg.name;
 
+    // Path with spaces
+    int i;
+    for (i = strlen(config.name.name); i < DEV_NAME_LEN; ++i)
+        config.name.name[i] = ' ';
+
     int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.name));
     if (ret)
         return -1;
