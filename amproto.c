@@ -92,7 +92,7 @@ int exec_download(int sock) {
         config.log.flags |= WED_CONFIG_LOG_LOOPBACK;
 
 
-    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.log));
     if (ret)
         return -1;
 
@@ -111,7 +111,7 @@ int exec_configls(int sock) {
     config.config_type = WED_CFG_LS;
     config.lightsensor = g_cfg.config_ls;
 
-    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.lightsensor));
     if (ret)
         return -1;
 
@@ -130,7 +130,7 @@ int exec_configaccel(int sock) {
     config.config_type = WED_CFG_ACCEL;
     config.accel = g_cfg.config_accel;
 
-    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.accel));
     if (ret)
         return -1;
 
@@ -153,7 +153,7 @@ int exec_blink(int sock) {
     config.config_type = WED_CFG_MAINT;
     config.maint = config_maint;
 
-    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.maint));
     if (ret)
         return -1;
 
@@ -184,7 +184,7 @@ int exec_tag(int sock) {
         printf("Write tag %u\n", tag);
     }
 
-    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.general));
     if (ret)
         return -1;
 
@@ -203,7 +203,7 @@ int exec_rename(int sock) {
     config.config_type = WED_CFG_NAME;
     config.name = g_cfg.name;
 
-    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.name));
     if (ret)
         return -1;
 
@@ -240,7 +240,7 @@ int exec_reset(int sock, AMIIGO_CMD cmd) {
     config.config_type = WED_CFG_MAINT;
     config.maint = config_maint;
 
-    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config));
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.maint));
     if (ret)
         return -1;
 
