@@ -26,6 +26,7 @@ typedef enum _DISCOVERY_STATE {
 
 // Keep the state of each device here
 typedef struct _amdev {
+    int dev_idx;               // device index
     int started;               // If command is sent
     int done;                  // If comamnd to do on device is done
     DISCOVERY_STATE state;     // Device state machine state

@@ -27,6 +27,7 @@
 #include "fwupdate.h"
 
 extern void char_init(void);
+extern char g_szBaseName[256];
 
 char g_src[512] = "hci0";
 
@@ -94,8 +95,8 @@ int exec_command(amdev_t * dev) {
 
 void show_usage_screen(void) {
     printf("Amiigo Link command line utility.\n");
-    printf("Usage: amlink [options] [command]\n"
-            "Options:\n"
+    printf("Usage: amlink [options] [command] [output]\n"
+            "Options and command:\n"
             "  -v, --verbose Verbose mode \n"
             "    More messages are dumped to console.\n"
             "  --full Full characteristics discovery. \n"
@@ -262,7 +263,9 @@ static void do_command_line(int argc, char * const argv[]) {
         }
     }
 
-    if (optind < argc) {
+    if (optind == argc - 1) {
+        strcpy(&g_szBaseName[0], argv[optind]);
+    } else if (optind < argc) {
         printf("Unrecognized command line arguments: ");
         while (optind < argc)
             printf("%s ", argv[optind++]);
@@ -307,6 +310,7 @@ int main(int argc, char **argv) {
 
     for (i = 0; i < g_cfg.count_dst; ++i) {
         amdev_t * dev = &devices[i];
+        dev->dev_idx = i; // Keep the index for reference
         // Connect to all devices
         dev->sock = gap_connect(g_src, g_cfg.dst[i]);
         if (dev->sock < 0) {

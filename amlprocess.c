@@ -50,18 +50,21 @@ static int8 cmpGetBits(GetBits* gb, uint8 nbits) {
     return val >> (8 - nbits);
 }
 
+char g_szBaseName[256] = {0};
 // Open file for logging
 // Inputs:
 //   szBase - the base name of the log
-FILE * log_file_open() {
+FILE * log_file_open(amdev_t * dev) {
     // Downloaded file
     char szFullName[1024] = { 0 };
-    char szDateTime[256];
+
     time_t now = time(NULL);
     // Use date-time to avoid overwriting logs
-    strftime(szDateTime, 256, "%Y-%m-%d-%H-%M-%S", localtime(&now));
+    if (g_szBaseName[0] == 0)
+        strftime(g_szBaseName, 256, "Log_%Y-%m-%d-%H-%M-%S.log", localtime(&now));
+
     // Use other metadata to distinguish each log
-    sprintf(szFullName, "Log_%s.log", szDateTime);
+    sprintf(szFullName, "%d_%s", dev->dev_idx, g_szBaseName);
     printf("\ndownloading %s ...\n", szFullName);
 
     FILE * fp = fopen(szFullName, "w");
@@ -130,7 +133,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             packet_len = sizeof(dev->logTime);
 
             if (dev->logFile == NULL)
-                dev->logFile = log_file_open();
+                dev->logFile = log_file_open(dev);
 
             dev->logTime.type = log_type;
             dev->logTime.timestamp = att_get_u32(&buf[payload + 1]);
@@ -147,7 +150,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             packet_len = sizeof(dev->logAccel);
 
             if (dev->logFile == NULL)
-                dev->logFile = log_file_open();
+                dev->logFile = log_file_open(dev);
 
             dev->bValidAccel = 1;
             dev->logAccel.type = log_type;
@@ -159,7 +162,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             packet_len = sizeof(logLSConfig);
 
             if (dev->logFile == NULL)
-                dev->logFile = log_file_open();
+                dev->logFile = log_file_open(dev);
 
             logLSConfig.type = log_type;
             logLSConfig.dac_on = buf[payload + 1];
@@ -207,7 +210,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             }
 
             if (dev->logFile == NULL)
-                dev->logFile = log_file_open();
+                dev->logFile = log_file_open(dev);
 
             if (field_count)
             {
@@ -227,7 +230,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             packet_len = sizeof(logTemp);
 
             if (dev->logFile == NULL)
-                dev->logFile = log_file_open();
+                dev->logFile = log_file_open(dev);
 
             logTemp.type = log_type;
             logTemp.temperature = att_get_u16(&buf[payload + 1]);
@@ -237,7 +240,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             packet_len = sizeof(dev->logTag);
 
             if (dev->logFile == NULL)
-                dev->logFile = log_file_open();
+                dev->logFile = log_file_open(dev);
 
             dev->logTag.type = log_type;
             memcpy(&dev->logTag.tag, &buf[payload + 1], 4);
@@ -247,7 +250,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             packet_len = WEDLogAccelCmpSize(&buf[payload]);
 
             if (dev->logFile == NULL)
-                dev->logFile = log_file_open();
+                dev->logFile = log_file_open(dev);
 
             logAccelCmp.type = log_type;
             logAccelCmp.count_bits = buf[payload + 1];
@@ -300,7 +303,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
                 break;
 
             if (dev->logFile == NULL)
-                dev->logFile = log_file_open();
+                dev->logFile = log_file_open(dev);
 
             if (nbits == 0) {
                 // It is still, just replicate
