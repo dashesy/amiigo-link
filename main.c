@@ -325,6 +325,7 @@ int main(int argc, char **argv) {
         download_time[i] = start_time[i];
     }
 
+    int done_count = 0; // Number of devices done with their command
     int dev_idx = g_cfg.count_dst - 1;
     for (;;) {
         // See if user ended the run
@@ -374,18 +375,23 @@ int main(int argc, char **argv) {
             fprintf(stderr, "main process_data() error in %s\n", g_cfg.dst[dev_idx]);
             break;
         }
-        if (dev->state == STATE_COUNT)
-            break; // Done the the command
 
         // If all devices have their status read, execute the requested command
-        if (dev->status.battery_level > 0) {
+        if (dev->status.battery_level > 0 && dev->state != STATE_COUNT) {
             // Now that we have status (e.g. number of logs) of all devices
             //  Start execution of the requested command
             ret = exec_command(dev);
         }
 
-        if (dev->state == STATE_COUNT)
-            break; // Done the the command
+        if (dev->state == STATE_COUNT) {
+            if (!dev->done) {
+                dev->done = 1;
+                done_count++;
+            }
+            // Done the the command on all devices
+            if (done_count == g_cfg.count_dst)
+                break;
+        }
 
     } //end for(;;
 
