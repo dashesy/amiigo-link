@@ -307,14 +307,14 @@ int main(int argc, char **argv) {
             // Start by discovering Amiigo handles
             ret = discover_handles(dev->sock, OPT_START_HANDLE, OPT_END_HANDLE);
             if (ret) {
-                fprintf(stderr, "discover_handles() error in %s\n", g_cfg.dst[i]);
+                fprintf(stderr, "discover_handles() error %d in %s\n", ret, g_cfg.dst[i]);
                 return -1;
             }
         } else {
             // Use default handles and discover the device
             ret = discover_device(dev);
             if (ret) {
-                fprintf(stderr, "discover_device() error in %s\n", g_cfg.dst[i]);
+                fprintf(stderr, "discover_device() error %d in %s\n", ret, g_cfg.dst[i]);
                 return -1;
             }
         }

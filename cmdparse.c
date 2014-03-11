@@ -66,6 +66,10 @@ int parse_command(const char * szName) {
         g_cmd = AMIIGO_CMD_BLINK;
     } else if (strcasecmp(szName, "status") == 0) {
         g_cmd = AMIIGO_CMD_NONE;
+    } else if (strcasecmp(szName, "rename") == 0) {
+        g_cmd = AMIIGO_CMD_RENAME;
+    } else if (strcasecmp(szName, "tag") == 0) {
+        g_cmd = AMIIGO_CMD_TAG;
     } else {
         fprintf(stderr, "Invalid command (%s)!\n", szName);
         return -1;
