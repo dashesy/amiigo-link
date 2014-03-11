@@ -382,6 +382,10 @@ int main(int argc, char **argv) {
             // Now that we have status (e.g. number of logs) of all devices
             //  Start execution of the requested command
             ret = exec_command(dev);
+            if (ret) {
+                fprintf(stderr, "exec_command() error in %s\n", g_cfg.dst[dev_idx]);
+                break;
+            }
         }
 
         if (dev->state == STATE_COUNT) {
