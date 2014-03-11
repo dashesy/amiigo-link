@@ -113,6 +113,7 @@ void show_usage_screen(void) {
             "       resetlogs: reset buffered logs\n"
             "       resetcpu: restart the board\n"
             "       resetconfigs: set all configs to default\n"
+            "       rename: rename the device\n"
             "  --input filename|param1=val1[,...]\n"
             "    Configuration file to use for given command.\n"
             "    Or sequence to specify parameters on command line.\n"
