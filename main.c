@@ -109,7 +109,7 @@ void show_usage_screen(void) {
             "       resetlogs: reset buffered logs\n"
             "       resetcpu: restart the board\n"
             "       resetconfigs: set all configs to default\n"
-            "  --input filename|param1=val1[,param2=val2]\n"
+            "  --input filename|param1=val1[,...]\n"
             "    Configuration file to use for given command.\n"
             "    Or sequence to specify parameters on command line.\n"
             "  -l, --live Live download as a stream.\n"
