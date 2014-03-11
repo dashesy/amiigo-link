@@ -169,6 +169,7 @@ int parse_config_single(const char * szParam) {
         strcpy(&g_cfg.name.name[0], szParam);
         break;
     default:
+        fprintf(stderr,"Configuration parameter %s not recognized!\n", szParam);
         err = -1;
         break;
     }
@@ -177,8 +178,7 @@ int parse_config_single(const char * szParam) {
 
 // Parse param = value pairs
 int set_config_pairs(const char * szParam, const char * szVal) {
-
-    if (szVal != NULL || szVal[0] == 0 || isspace(szVal[0]))
+    if (szVal == NULL || szVal[0] == 0 || isspace(szVal[0]))
         return parse_config_single(szParam);
 
     long val = strtol(szVal, NULL, 0);
@@ -229,9 +229,7 @@ int set_config_pairs(const char * szParam, const char * szVal) {
         uint32_t uval = (uint32_t)val;
         memcpy(&g_cfg.general.tag[0], &uval, 4);
     } else {
-        fprintf(stderr,
-                "Configuration parameter %s not recognized!\n",
-                szParam);
+        fprintf(stderr,"Configuration parameter %s not recognized!\n", szParam);
         return -1;
     }
     return 0;
