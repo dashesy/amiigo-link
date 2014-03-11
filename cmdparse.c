@@ -163,7 +163,7 @@ int parse_config_flag(const char * szParam) {
 // Parse param = value pairs
 int set_config_pairs(const char * szParam, const char * szVal) {
 
-    if (szVal != NULL || szVal[0] == NULL || isspace(szVal[0]))
+    if (szVal != NULL || szVal[0] == 0 || isspace(szVal[0]))
         return parse_config_flag(szParam);
 
     long val = strtol(szVal, NULL, 0);
@@ -238,7 +238,6 @@ int parse_input_line(const char * szName) {
 
     char * pch;
     pch = strtok (szArg, ",");
-    int dev_count = 0;
     while (pch != NULL) {
         err = parse_one_pair(pch);
         if (err)
