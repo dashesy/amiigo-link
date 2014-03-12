@@ -257,12 +257,11 @@ int set_config_pairs(const char * szParam, const char * szVal) {
 
 // Parse one line of param or param=value
 int parse_one_pair(char * szLine) {
-    char * pch;
-    pch = strtok (szLine, "=");
+    char * pch = strchr(szLine, '=');
     if (pch == NULL)
         return parse_config_single(szLine);
-
-    return set_config_pairs(szLine, pch);
+    *pch = 0;
+    return set_config_pairs(szLine, pch + 1);
 }
 
 // Parse single command line
@@ -285,7 +284,6 @@ int parse_input_line(const char * szName) {
 
 // Parse file
 int parse_input_file(const char * szName) {
-
     int is_path = (strpbrk(szName, "./") != NULL);
     // If it is detected to be sequence of param=value[,...] parse the line
     if (strpbrk(szName, "=,") && !is_path)

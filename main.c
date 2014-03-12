@@ -29,7 +29,8 @@
 extern void char_init(void);
 extern char g_szBaseName[256];
 
-char g_src[512] = "hci0";
+// TODO: have option of multiple sources
+char g_src[512] = "hci0"; // Device to connect from
 
 aml_options_t g_opt; // flags option
 
@@ -363,7 +364,8 @@ int main(int argc, char **argv) {
                 // Read the status to keep conection alive
                 exec_status(dev->sock);
             }
-            if (dev->state == STATE_DOWNLOAD && !g_opt.live) {
+            // If downloading (non-live) and not already done
+            if (dev->state == STATE_DOWNLOAD && !g_opt.live && !dev->done) {
                 diff = difftime(stop_time[dev_idx], download_time[dev_idx]);
                 // Download timeout reached
                 if (diff > 2)
@@ -430,8 +432,8 @@ int main(int argc, char **argv) {
             fclose(dev->logFile);
             dev->logFile = NULL;
         }
-    }
-    printf("\n");
+    } // } //end for(
 
+    printf("\n");
     return 0;
 }
