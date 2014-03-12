@@ -358,7 +358,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             printf("\rdownloading ... %u out of %u  (%2.0f%%)", dev->read_logs,
                     dev->total_logs, (100.0 * dev->read_logs) / dev->total_logs);
         else
-            printf("\r\t\t\t%u out of %u  (%2.0f%% of %d)", dev->read_logs,
+            printf("\r\t\t\t\t\t\t%u out of %u  (%2.0f%% of %d)", dev->read_logs,
                     dev->total_logs, (100.0 * dev->read_logs) / dev->total_logs, dev->dev_idx);
 
         fflush(stdout);
