@@ -68,6 +68,18 @@ typedef struct {
 	uint16 Build;
 } PACKED WEDVersion;
 
+///////////////////////////////////////////////////////////////////////////////
+// Rates for logs that have rates
+enum { LogAccel, LogOxygen, LogTemp, LogNum };
+
+#define RATE_SLOW  0
+#define RATE_FAST  1
+#define RATE_SLEEP 2
+#define RATES      3
+
+struct WEDCFG {
+	uint16 rates[RATES][LogNum];
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 // Status
@@ -178,26 +190,15 @@ enum {
 #define CONFIGLS_FLAGS_ABORT     0x40
 
 typedef struct {
-	uint8 unused0;
-	uint8 unused1;
-
 	// Samples will be taken at the above rate for 'duration' seconds
 	// every 'interval' seconds. Sampling is disabled if interval is 0.
 	uint16 fast_interval;
 	uint16 slow_interval;
 	uint16 sleep_interval;
-	uint8 duration;
-
-	uint8 unused2;
-	uint8 unused3;
-	uint8 unused4;
-	uint8 unused5;
-
-	uint8 debug;     // Console output debug level, set to 0 for normal operation
-	uint8 unused6;
-	uint8 unused7;
+	uint8 duration;  // duration of each capture in seconds
 	uint8 movement;  // average movement level at wich starting a reading is allowed
 	uint8 flags;     // Contol Bits
+	uint8 debug;     // Console output debug level, set to 0 for normal operation
 } PACKED WEDConfigLS;
 
 typedef struct {
@@ -476,10 +477,10 @@ typedef struct {
 // This LOG entry is placed into the log on a reboot after a scan is done.
 typedef struct {
 	uint8 type; // WED_LOG_COUNT
-
-	uint32 OldLastKnownCount;
-	uint32 CurrentScannedCount;
-	uint32 TicksToReboot;
+	uint32 log_timestamp;   // Last logged timestamp before reboot
+	uint16 log_accel_count; // Last number of accel logs since last_tick before reboot
+	uint32 old_timestamp;   // Last known timestamp before reboot
+	uint32 timestamp;       // ticks after reboot
 } PACKED WEDLogCount;
 
 

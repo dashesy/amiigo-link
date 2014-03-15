@@ -22,6 +22,7 @@
 #include "common.h"
 #include "gapproto.h"
 #include "amproto.h"
+#include "amoldproto.h"
 #include "amlprocess.h"
 #include "cmdparse.h"
 #include "fwupdate.h"
@@ -54,7 +55,10 @@ int exec_command(amdev_t * dev) {
         break;
     case AMIIGO_CMD_CONFIGLS:
         dev->state = STATE_COUNT; // Done with command
-        return exec_configls(dev->sock);
+        if (dev->ver_flat < FW_VERSION(1,8,117))
+            return exec_configls_18116(dev->sock);
+        else
+            return exec_configls(dev->sock);
         break;
     case AMIIGO_CMD_CONFIGACCEL:
         dev->state = STATE_COUNT; // Done with command

@@ -51,6 +51,7 @@ COMMON_SRC := ./main.c \
               ./cmdparse.c \
               ./amchar.c \
               ./fwupdate.c \
+              ./amoldproto.c \
               
 # Avoid the need to latest BlueZ
 COMMON_SRC += jni/bluetooth.c\
