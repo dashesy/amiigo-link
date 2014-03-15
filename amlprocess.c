@@ -397,9 +397,16 @@ int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
 
     uint32_t tag;
     memcpy(&tag, &dev->status.cur_tag[0], 4);
-    printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %3.3f s\tReboots: %u\tTag: %10u",
-            dev->szBuild, dev->szVersion, dev->status.num_log_entries, dev->status.battery_level,
-            dev->status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, dev->status.reboot_count, tag);
+    if (dev->dev_idx == 0)
+        printf("\nStatus: Build: %s\t Version: %s \n\t Logs: %u\t Battery: %u%%\t Time: %10.3f s\tReboots: %u\tTag: %10u",
+                dev->szBuild, dev->szVersion,
+                dev->status.num_log_entries, dev->status.battery_level,
+                dev->status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, dev->status.reboot_count, tag);
+    else
+        printf("\nStatus: Build: %s\t Version: %s \t Device: %d\n\t Logs: %u\t Battery: %u%%\t Time: %10.3f s\tReboots: %u\tTag: %10u",
+                dev->szBuild, dev->szVersion, dev->dev_idx,
+                dev->status.num_log_entries, dev->status.battery_level,
+                dev->status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, dev->status.reboot_count, tag);
 
     if (dev->status.status & STATUS_UPDATE)
         printf(" (Updating) ");
