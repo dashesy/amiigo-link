@@ -228,10 +228,13 @@ int set_config_pairs(const char * szParam, const char * szVal) {
     // ---------------- Accel ---------------------
     else if (strcasecmp(szParam, "accel_slow_rate") == 0) {
         g_cfg.config_accel.slow_rate = WEDConfigRateParam(
-                (uint32_t) atoi(szVal));
+                (uint32_t) val);
     } else if (strcasecmp(szParam, "accel_fast_rate") == 0) {
         g_cfg.config_accel.fast_rate = WEDConfigRateParam(
-                (uint32_t) atoi(szVal));
+                (uint32_t) val);
+    } else if (strcasecmp(szParam, "accel_sleep_rate") == 0) {
+        g_cfg.config_accel.sleep_rate = WEDConfigRateParam(
+                (uint32_t) val);
     }
     // ---------------- rename ---------------------
     else if (strcasecmp(szParam, "name") == 0) {

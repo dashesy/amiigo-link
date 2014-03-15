@@ -171,7 +171,7 @@ int exec_tag(int sock) {
     memset(&config, 0, sizeof(config));
     config.config_type = WED_CFG_GENERAL;
     config.general = g_cfg.general;
-    config.general.flags |= CFG_WRITE_TAG;
+    config.general.flags |= (CFG_WRITE_TAG | CFG_FLUSH_LOG);
 
     uint32_t tag;
     memcpy(&tag, &config.general.tag[0], 4);
