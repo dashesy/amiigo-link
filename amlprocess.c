@@ -61,10 +61,10 @@ FILE * log_file_open(amdev_t * dev) {
     time_t now = time(NULL);
     // Use date-time to avoid overwriting logs
     if (g_szBaseName[0] == 0)
-        strftime(g_szBaseName, 256, "Log_%Y-%m-%d-%H-%M-%S.log", localtime(&now));
+        strftime(g_szBaseName, 256, "Log_%Y-%m-%d-%H-%M-%S", localtime(&now));
 
     // Use other metadata to distinguish each log
-    sprintf(szFullName, "%d_%s", dev->dev_idx, g_szBaseName);
+    sprintf(szFullName, "%s_%d.log", g_szBaseName, dev->dev_idx);
     printf("\ndownloading %s ...\n", szFullName);
 
     FILE * fp = fopen(szFullName, "w");
