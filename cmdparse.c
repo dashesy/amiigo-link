@@ -77,9 +77,6 @@ int parse_command(const char * szName) {
     return 0;
 }
 
-#define RATE_SLOW  0
-#define RATE_FAST  1
-#define RATE_SLEEP 2
 int parse_mode(const char * szName) {
     if (strcasecmp(szName, "fast") == 0) {
         g_cfg.general.flags = CFG_NEW_MODE;
