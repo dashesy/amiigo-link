@@ -146,8 +146,8 @@ void show_usage_screen(void) {
             "    Write value to i2c address and register (debugging only).\n"
             "  --help         Display this usage screen\n"
             "Input Output: (optional) \n"
-            "  If a path (or file name with extension) it will be taken as output file\n"
-            "  Otherwise it will be taken as input line sequence.\n"
+            "  If running download command, will be taken as output file\n"
+            "  Otherwise will be taken as input file (if a file) or line sequence\n"
             );
     printf("\namlink is Copyright Amiigo inc\n");
 }
@@ -276,10 +276,11 @@ static void do_command_line(int argc, char * const argv[]) {
     int err = 0;
     if (optind == argc - 1) {
         // Parse the last reamining argument
-        if (is_parse_file_name(argv[optind]))
+        if (g_cmd == AMIIGO_CMD_DOWNLOAD) {
             strcpy(&g_szBaseName[0], argv[optind]);
-        else
-            err = parse_input_line(argv[optind]);
+        } else {
+            err = parse_input_file(argv[optind]);
+        }
 
     } else if (optind < argc) {
         printf("Unrecognized command line arguments: ");

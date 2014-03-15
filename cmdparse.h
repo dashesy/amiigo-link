@@ -10,7 +10,7 @@
 
 void cmd_init(void);
 
-int is_parse_file_name(const char * szName);
+int parse_file_exists(const char * szName);
 int parse_command(const char * szName);
 int parse_adapter(const char * szName);
 int parse_device(const char * szName);

@@ -282,8 +282,20 @@ int parse_input_line(const char * szName) {
     return err;
 }
 
+// If file exists
+int parse_file_exists(const char * szName) {
+    FILE * fp = fopen(szName, "r");
+
+    if (fp == NULL)
+        return 0;
+
+    fclose(fp);
+
+    return 0;
+}
+
 // If the name is likely a file
-int is_parse_file_name(const char * szName) {
+int parse_is_file_name(const char * szName) {
     int is_path = (strpbrk(szName, "./") != NULL);
     if (is_path)
         return 1;
@@ -295,23 +307,20 @@ int is_parse_file_name(const char * szName) {
 }
 
 // If the name is likely a file
-int is_parse_input_file(const char * szName) {
-    if (is_parse_file_name(szName))
+int parse_is_input_file(const char * szName) {
+    if (parse_file_exists(szName))
         return 1;
 
-    FILE * fp = fopen(szName, "r");
+    if (parse_is_file_name(szName))
+        return 1;
 
-    if (fp == NULL)
-        return 0;
-
-    fclose(fp);
     return 1;
 }
 
 // Parse file
 int parse_input_file(const char * szName) {
     // If it is detected to be sequence of param=value[,...] parse the line
-    if (!is_parse_input_file(szName))
+    if (!parse_is_input_file(szName))
         return parse_input_line(szName);
 
     char szCmd[256];
