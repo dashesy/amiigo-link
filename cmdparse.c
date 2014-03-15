@@ -314,7 +314,7 @@ int parse_is_input_file(const char * szName) {
     if (parse_is_file_name(szName))
         return 1;
 
-    return 1;
+    return 0;
 }
 
 // Parse file
