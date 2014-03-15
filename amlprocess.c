@@ -111,6 +111,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     WEDLogLSData logLSData;
     WEDLogTemp logTemp;
     WEDLogLSConfig logLSConfig;
+    WEDLogCount logCount;
 
     // TODO: check packet sizes
     // TODO: check data integrity
@@ -145,6 +146,19 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
 
             fprintf(dev->logFile, "[\"timestamp\",[%u,%u]]\n", dev->logTime.timestamp, dev->logTime.flags);
 
+            break;
+        case WED_LOG_COUNT:
+            packet_len = sizeof(logCount);
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open(dev);
+            logCount.type = log_type;
+            logCount.log_timestamp = att_get_u32(&buf[payload + 1]);
+            logCount.log_accel_count = att_get_u32(&buf[payload + 5]);
+            logCount.old_timestamp = att_get_u32(&buf[payload + 7]);
+            logCount.timestamp = att_get_u32(&buf[payload + 11]);
+            fprintf(dev->logFile, "[\"log_count\",[\"log_timestamp\",%u],"
+                    "[\"log_accel_count\",%u],[\"old_timestamp\",%u],[\"timestamp\",%u]]\n", logCount.log_timestamp,
+                    logCount.log_accel_count, logCount.old_timestamp, logCount.timestamp);
             break;
         case WED_LOG_ACCEL:
             packet_len = sizeof(dev->logAccel);
