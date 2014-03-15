@@ -100,7 +100,7 @@ int exec_command(amdev_t * dev) {
 
 void show_usage_screen(void) {
     printf("Amiigo Link command line utility.\n");
-    printf("Usage: amlink [options] [command] [output]\n"
+    printf("Usage: amlink [options] [command] [input|output]\n"
             "Options and command:\n"
             "  -v, --verbose Verbose mode \n"
             "    More messages are dumped to console.\n"
@@ -137,7 +137,7 @@ void show_usage_screen(void) {
             "    Switch to slow or fast mode after tag\n"
             "  --input filename|param1=val1[,...]\n"
             "    Configuration file to use for given command.\n"
-            "    Or sequence to specify parameters on command line.\n"
+            "    Or input line sequence to specify parameters on command line.\n"
             "  --fwupdate file\n"
             "    Firmware image file to to use for update.\n"
             "  --i2c_read address:reg\n"
@@ -145,7 +145,10 @@ void show_usage_screen(void) {
             "  --i2c_write address:reg:value\n"
             "    Write value to i2c address and register (debugging only).\n"
             "  --help         Display this usage screen\n"
-            "Output: (optional) log file name for download\n");
+            "Input Output: (optional) \n"
+            "  If a path (or file name with extension) it will be taken as output file\n"
+            "  Otherwise it will be taken as input line sequence.\n"
+            );
     printf("\namlink is Copyright Amiigo inc\n");
 }
 
@@ -270,13 +273,22 @@ static void do_command_line(int argc, char * const argv[]) {
         }
     }
 
+    int err = 0;
     if (optind == argc - 1) {
-        strcpy(&g_szBaseName[0], argv[optind]);
+        // Parse the last reamining argument
+        if (is_parse_file_name(argv[optind]))
+            strcpy(&g_szBaseName[0], argv[optind]);
+        else
+            err = parse_input_line(argv[optind]);
+
     } else if (optind < argc) {
         printf("Unrecognized command line arguments: ");
         while (optind < argc)
             printf("%s ", argv[optind++]);
         printf("\n");
+        err = 1;
+    }
+    if (err) {
         show_usage_screen();
         exit(1);
     }

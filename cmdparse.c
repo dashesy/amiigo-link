@@ -282,11 +282,36 @@ int parse_input_line(const char * szName) {
     return err;
 }
 
+// If the name is likely a file
+int is_parse_file_name(const char * szName) {
+    int is_path = (strpbrk(szName, "./") != NULL);
+    if (is_path)
+        return 1;
+
+    if (strpbrk(szName, "=,"))
+        return 0;
+
+    return 0;
+}
+
+// If the name is likely a file
+int is_parse_input_file(const char * szName) {
+    if (is_parse_file_name(szName))
+        return 1;
+
+    FILE * fp = fopen(szName, "r");
+
+    if (fp == NULL)
+        return 0;
+
+    fclose(fp);
+    return 1;
+}
+
 // Parse file
 int parse_input_file(const char * szName) {
-    int is_path = (strpbrk(szName, "./") != NULL);
     // If it is detected to be sequence of param=value[,...] parse the line
-    if (strpbrk(szName, "=,") && !is_path)
+    if (!is_parse_input_file(szName))
         return parse_input_line(szName);
 
     char szCmd[256];
@@ -294,12 +319,6 @@ int parse_input_file(const char * szName) {
     char szVal[256];
     FILE * fp = fopen(szName, "r");
     if (fp == NULL) {
-        // Try it as a single param
-        if (!is_path) {
-            int err = parse_config_single(szName);
-            if (err == 0)
-                return 0;
-        }
         fprintf(stderr, "Configuration file (%s) not accessible!\n", szName);
         return -1;
     }
