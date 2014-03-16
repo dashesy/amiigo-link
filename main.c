@@ -147,7 +147,7 @@ void show_usage_screen(void) {
             "  --help         Display this usage screen\n"
             "Input Output: (optional) \n"
             "  If running download command, will be taken as output file\n"
-            "  Otherwise will be taken as input file (if a file) or line sequence\n"
+            "  Otherwise will be taken as input file name or line sequence\n"
             );
     printf("\namlink is Copyright Amiigo inc\n");
 }
