@@ -385,6 +385,8 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
 
 // Set device status
 int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
+    if (buflen < sizeof(WEDStatus))
+        return -1;
     uint8_t * pdu = &buf[1];
     dev->status.num_log_entries = att_get_u32(&pdu[0]);
     dev->status.battery_level = pdu[4];

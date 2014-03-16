@@ -406,7 +406,7 @@ int main(int argc, char **argv) {
         // Process incoming data
         ret = process_data(dev, buf, len);
         if (ret) {
-            fprintf(stderr, "main process_data() error in %s\n", g_cfg.dst[dev_idx]);
+            fprintf(stderr, "main process_data() error %d in %s\n", ret, g_cfg.dst[dev_idx]);
             break;
         }
 
@@ -416,7 +416,7 @@ int main(int argc, char **argv) {
             //  Start execution of the requested command
             ret = exec_command(dev);
             if (ret) {
-                fprintf(stderr, "exec_command() error in %s\n", g_cfg.dst[dev_idx]);
+                fprintf(stderr, "exec_command() error %d in %s\n", ret, g_cfg.dst[dev_idx]);
                 break;
             }
         }

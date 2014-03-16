@@ -28,7 +28,7 @@
 int exec_status(int sock) {
     int ret;
 
-    uint16_t handle = g_char[AMIIGO_UUID_FIRMWARE].value_handle;
+    uint16_t handle = g_char[AMIIGO_UUID_STATUS].value_handle;
     if (handle == 0)
         return -1; // Not ready yet
 
