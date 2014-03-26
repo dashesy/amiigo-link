@@ -89,6 +89,7 @@ struct WEDCFG {
 #define  STATUS_CHARGING      0x04  
 #define  STATUS_LS_INPROGRESS 0x08
 #define  STATUS_SLEEPMODE     0x10
+#define  STATUS_WORN          0x20
 
 // Top-level struct for characteristic UUID AMI_UUID(WED_UUID_STATUS)
 typedef struct {
@@ -104,6 +105,7 @@ typedef struct {
 	// bit 2: Are we charging.
 	// bit 3: LS collection in progress.
 	// bit 4: are we in sleep mode
+	// bit 5: if pox thinks the unit is worn
 	uint8 status; 
 
 	// Current time in WED_TIME_TICKS_PER_SEC
@@ -478,9 +480,9 @@ typedef struct {
 typedef struct {
 	uint8 type; // WED_LOG_COUNT
 	uint32 log_timestamp;   // Last logged timestamp before reboot
-	uint16 log_accel_count; // Last number of accel logs since last_tick before reboot
+	uint16 log_accel_count; // Last number of accel logs since log_timestamp before reboot
 	uint32 old_timestamp;   // Last known timestamp before reboot
-	uint32 timestamp;       // ticks after reboot
+	uint32 timestamp;       // ticks since reboot until log is ready
 } PACKED WEDLogCount;
 
 
