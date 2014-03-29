@@ -30,6 +30,9 @@
 extern void char_init(void);
 extern char g_szBaseName[256];
 
+int g_amver_major = 1;
+int g_amver_minor = 0;
+
 // TODO: have option of multiple sources
 char g_src[512] = "hci0"; // Device to connect from
 
@@ -99,7 +102,7 @@ int exec_command(amdev_t * dev) {
 }
 
 void show_usage_screen(void) {
-    printf("Amiigo Link command line utility.\n");
+    printf("Amiigo Link command line utility %d.%d\n", g_amver_major, g_amver_minor);
     printf("Usage: amlink [options] [command] [input|output]\n"
             "Options and command:\n"
             "  -v, --verbose Verbose mode \n"
@@ -152,6 +155,11 @@ void show_usage_screen(void) {
     printf("\namlink is Copyright Amiigo inc\n");
 }
 
+void show_version(void) {
+    printf("Amiigo Link command line utility %d.%d\n", g_amver_major, g_amver_minor);
+    printf("\namlink is Copyright Amiigo inc\n");
+}
+
 static void do_command_line(int argc, char * const argv[]) {
     // Parse the input
     while (1) {
@@ -160,6 +168,7 @@ static void do_command_line(int argc, char * const argv[]) {
         int option_index = 0;
         static struct option long_options[] = {
               { "verbose", 0, 0, 'v' },
+              { "version", 0, 0, 'V' },
               { "live", 0, 0, 'l' },
               { "full", 0, 0, 'a' },
               { "compressed", 0, 0, 'p'},
@@ -208,6 +217,10 @@ static void do_command_line(int argc, char * const argv[]) {
 
         case 'v':
             g_opt.verbosity = 1;
+            break;
+
+        case 'V':
+            show_version();
             break;
 
         case 'a':
@@ -274,7 +287,7 @@ static void do_command_line(int argc, char * const argv[]) {
     }
 
     if (argc == 1) {
-        show_usage_screen();
+        show_version();
         exit(0);
     }
 
