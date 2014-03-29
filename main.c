@@ -273,6 +273,11 @@ static void do_command_line(int argc, char * const argv[]) {
         }
     }
 
+    if (argc == 1) {
+        show_usage_screen();
+        exit(0);
+    }
+
     int err = 0;
     if (optind == argc - 1) {
         // Parse the last reamining argument
