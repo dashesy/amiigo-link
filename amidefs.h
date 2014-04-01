@@ -90,6 +90,7 @@ struct WEDCFG {
 #define  STATUS_LS_INPROGRESS 0x08
 #define  STATUS_SLEEPMODE     0x10
 #define  STATUS_WORN          0x20
+#define  STATUS_RECORDING     0x40
 
 // Top-level struct for characteristic UUID AMI_UUID(WED_UUID_STATUS)
 typedef struct {
@@ -106,6 +107,7 @@ typedef struct {
 	// bit 3: LS collection in progress.
 	// bit 4: are we in sleep mode
 	// bit 5: if pox thinks the unit is worn
+	// bit 6: if accel is being recorded
 	uint8 status; 
 
 	// Current time in WED_TIME_TICKS_PER_SEC
@@ -176,7 +178,6 @@ typedef struct {
 #define DAC_REF_VREF_BUF    0 // default
 #define DAC_REF_VREF_UNBUF  1
 #define DAC_REF_VCC         2
-#define DAC_REF_VCC         2
 
 #define ADC_REF_27          0  // default
 #define ADC_REF_12          1
@@ -197,10 +198,11 @@ typedef struct {
 	uint16 fast_interval;
 	uint16 slow_interval;
 	uint16 sleep_interval;
-	uint8 duration;  // duration of each capture in seconds
-	uint8 movement;  // average movement level at wich starting a reading is allowed
-	uint8 flags;     // Contol Bits
-	uint8 debug;     // Console output debug level, set to 0 for normal operation
+	uint8 manual_duration;  // duration of each capture in seconds (manual, also used if any duration is 0)
+	uint8 movement;         // average movement level at wich starting a reading is allowed
+	uint8 flags;            // Contol Bits
+	uint8 debug;            // Console output debug level, set to 0 for normal operation
+	uint8 durations[RATES]; // duration of each capture in seconds for each rate
 } PACKED WEDConfigLS;
 
 typedef struct {

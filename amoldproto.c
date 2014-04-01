@@ -38,7 +38,7 @@ int exec_configls_18116(int sock) {
     config.lightsensor.fast_interval = g_cfg.config_ls.fast_interval;
     config.lightsensor.slow_interval = g_cfg.config_ls.slow_interval;
     config.lightsensor.sleep_interval = g_cfg.config_ls.sleep_interval;
-    config.lightsensor.duration = g_cfg.config_ls.duration;
+    config.lightsensor.duration = g_cfg.config_ls.manual_duration;
     config.lightsensor.debug = g_cfg.config_ls.debug;
     config.lightsensor.movement = g_cfg.config_ls.movement;
     config.lightsensor.flags = g_cfg.config_ls.flags;

@@ -424,6 +424,8 @@ int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
         printf(" (Light Capture) ");
     if (dev->status.status & STATUS_WORN)
         printf(" (Worn) ");
+    if (dev->status.status & STATUS_RECORDING)
+        printf(" (Rec) ");
     printf("\n");
 
     return 0;
