@@ -31,7 +31,7 @@ extern void char_init(void);
 extern char g_szBaseName[256];
 
 int g_amver_major = 1;
-int g_amver_minor = 0;
+int g_amver_minor = 1;
 
 // TODO: have option of multiple sources
 char g_src[512] = "hci0"; // Device to connect from
@@ -108,7 +108,7 @@ int exec_command(amdev_t * dev) {
 void show_usage_screen(void) {
     printf("Amiigo Link command line utility %d.%d\n", g_amver_major, g_amver_minor);
     printf("Usage: amlink [options] [command] [input|output]\n"
-            "Options and command:\n"
+            "Options:\n"
             "  -v, --verbose Verbose mode \n"
             "    More messages are dumped to console.\n"
             "  --full Full characteristics discovery. \n"
@@ -125,7 +125,7 @@ void show_usage_screen(void) {
             "    Hit `q` to end the stream.\n"
             "  --print\n"
             "    Print accelerometer to console as well as the log file.\n"
-            " Command:\n"
+            "Command:\n"
             "  --lescan \n"
             "    Low energy scan (needs root priviledge)\n"
             "  --c, --command cmd \n"
@@ -135,6 +135,7 @@ void show_usage_screen(void) {
             "       configls: configure light sensor\n"
             "       configaccel: configure acceleration sensors\n"
             "       blink: configure blink LED\n"
+            "       deepsleep: go to deep sleep and only wake on hard double tap\n"
             "       resetlogs: reset buffered logs\n"
             "       resetcpu: restart the board\n"
             "       resetconfigs: set all configs to default\n"
@@ -152,6 +153,11 @@ void show_usage_screen(void) {
             "  --i2c_write address:reg:value\n"
             "    Write value to i2c address and register (debugging only).\n"
             "  --help         Display this usage screen\n"
+            "Parameters:\n"
+            "  parameters in a file are in the form of <key> <value> on each line\n"
+            "  parameters on a command line are in the form of <key>=<value> and are separated by comma"
+            "  light sensor parameters: ls_fast_interval, ls_slow_interval, ls_duration, ls_debug, ls_flags, ls_movement\n"
+            "  accelerometer parameters: accel_slow_rate, accel_fast_rate, accel_sleep_rate\n"
             "Input Output: (optional) \n"
             "  If running download command, will be taken as output file\n"
             "  Otherwise will be taken as input file name or line sequence\n"
