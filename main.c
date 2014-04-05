@@ -106,7 +106,7 @@ int exec_command(amdev_t * dev) {
 }
 
 void show_usage_screen(void) {
-    printf("Amiigo Link command line utility %d.%d\n", g_amver_major, g_amver_minor);
+    printf("Amiigo Link command line utility version %d.%d\n", g_amver_major, g_amver_minor);
     printf("Usage: amlink [options] [command] [input|output]\n"
             "Options:\n"
             "  -v, --verbose Verbose mode \n"
@@ -166,7 +166,7 @@ void show_usage_screen(void) {
 }
 
 void show_version(void) {
-    printf("Amiigo Link command line utility %d.%d\n", g_amver_major, g_amver_minor);
+    printf("Amiigo Link command line utility version %d.%d\n", g_amver_major, g_amver_minor);
     printf("\namlink is Copyright Amiigo inc\n");
 }
 
