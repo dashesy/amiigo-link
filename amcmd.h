@@ -20,6 +20,7 @@ typedef enum _AMIIGO_CMD {
     AMIIGO_CMD_CONFIGLS,      // Configure light sensors
     AMIIGO_CMD_CONFIGACCEL,   // Configure acceleration sensors
     AMIIGO_CMD_BLINK,         // Configure a single blink
+    AMIIGO_CMD_DEEPSLEEP,     // Go to deep sleep until double tap
     AMIIGO_CMD_I2C_READ,      // Read i2c address and register
     AMIIGO_CMD_I2C_WRITE,     // Write to i2c address and register
     AMIIGO_CMD_RENAME,        // Rename the WED

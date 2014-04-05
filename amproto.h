@@ -17,6 +17,7 @@ int exec_download(int sock);
 int exec_configls(int sock);
 int exec_configaccel(int sock);
 int exec_blink(int sock);
+int exec_deepsleep(int sock);
 int exec_tag(int sock);
 int exec_rename(int sock);
 int exec_reset(int sock, AMIIGO_CMD cmd);

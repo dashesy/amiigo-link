@@ -160,6 +160,28 @@ int exec_blink(int sock) {
     return 0;
 }
 
+// Go to deep sleep until hard double tap
+int exec_deepsleep(int sock) {
+
+    uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    WEDConfigMaint config_maint;
+    memset(&config_maint, 0, sizeof(config_maint));
+    config_maint.command = WED_DEEP_SLEEP;
+    WEDConfig config;
+    memset(&config, 0, sizeof(config));
+    config.config_type = WED_CFG_MAINT;
+    config.maint = config_maint;
+
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.maint));
+    if (ret)
+        return -1;
+
+    return 0;
+}
+
 // Start LED blinking
 int exec_tag(int sock) {
 

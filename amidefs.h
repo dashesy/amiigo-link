@@ -227,6 +227,7 @@ typedef enum {
 	WED_MAINT_TAG,          // Insert WEDLogTag entry into log
 	WED_MAINT_BLINK_LED,    // blink USER
 	WED_MAINT_SYSTEM_LED,   // Enable system LED
+	WED_DEEP_SLEEP,         // turn off until hard double tap.
 } PACKED WED_MAINT_CMD;
 
 typedef struct {

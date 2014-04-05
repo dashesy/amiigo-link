@@ -64,6 +64,8 @@ int parse_command(const char * szName) {
         g_cmd = AMIIGO_CMD_CONFIGACCEL;
     } else if (strcasecmp(szName, "blink") == 0) {
         g_cmd = AMIIGO_CMD_BLINK;
+    } else if (strcasecmp(szName, "deepsleep") == 0) {
+        g_cmd = AMIIGO_CMD_DEEPSLEEP;
     } else if (strcasecmp(szName, "status") == 0) {
         g_cmd = AMIIGO_CMD_NONE;
     } else if (strcasecmp(szName, "rename") == 0) {

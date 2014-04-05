@@ -71,6 +71,10 @@ int exec_command(amdev_t * dev) {
         dev->state = STATE_COUNT; // Done with command
         return exec_blink(dev->sock);
         break;
+    case AMIIGO_CMD_DEEPSLEEP:
+        dev->state = STATE_COUNT; // Done with command
+        return exec_deepsleep(dev->sock);
+        break;
     case AMIIGO_CMD_RESET_CPU:
     case AMIIGO_CMD_RESET_LOGS:
     case AMIIGO_CMD_RESET_CONFIGS:
