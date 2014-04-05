@@ -155,7 +155,7 @@ void show_usage_screen(void) {
             "  --help         Display this usage screen\n"
             "Parameters:\n"
             "  parameters in a file are in the form of <key> <value> on each line\n"
-            "  parameters on a command line are in the form of <key>=<value> and are separated by comma"
+            "  parameters on a command line are in the form of <key>=<value> and are separated by comma.\n"
             "  light sensor parameters: ls_fast_interval, ls_slow_interval, ls_duration, ls_debug, ls_flags, ls_movement\n"
             "  accelerometer parameters: accel_slow_rate, accel_fast_rate, accel_sleep_rate\n"
             "Input Output: (optional) \n"
