@@ -440,24 +440,24 @@ int process_extstatus(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     WEDCurrentConfig extstatus;
     memcpy(&extstatus, &pdu[0], sizeof(extstatus));
 
-    const char log_names[LogNum][10] = {"Accel", "Oxygen", "Temp"};
+    const char log_names[LogNum-1][10] = {"Accel", "Oxygen"};
     const char rate_names[RATES][10] = {"Slow", "Fast", "Sleep"};
     int i, j;
 
     // title of rates
-    for (i = 0; i < LogNum; ++i)
+    for (i = 0; i < LogNum-1; ++i)
         printf("\t%s", log_names[i]);
     printf("\n");
 
     for (j = 0; j < RATES; ++j) {
         printf("%s\t", rate_names[j]);
-        for (i = 0; i < LogNum; ++i) {
-            printf("%u\t", extstatus.wedcfg.rates[j][i]);
+        for (i = 0; i < LogNum-1; ++i) {
+            printf("%u\t", extstatus.rates[j][i]);
         }
         printf("\n");
     }
 
-    printf("Pulse capture durations: ");
+    printf("Pulse capture durations:\t");
     for (i = 0; i < RATES; ++i)
         printf("%s: %u\t", rate_names[i], extstatus.pulse_durations[i]);
 

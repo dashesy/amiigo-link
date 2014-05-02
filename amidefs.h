@@ -123,14 +123,14 @@ typedef struct {
 ///////////////////////////////////////////////////////////////////////////////
 // Extended Status (use mainly for debugging)
 
-#define  EXTSTATUS_LOG_READY        0x00000001
+#define  EXTSTATUS_LOG_READY        0x0001
 
 // Top-level struct for reading characteristic UUID AMI_UUID(WED_UUID_CONFIG)
 typedef struct {
-	uint32 status; // extended status
+	uint16 status; // extended status
 
 	// current rates
-	struct WEDCFG wedcfg;
+	uint16 rates[RATES][LogNum-1];
 
 	// pulse durations
 	uint8 pulse_durations[RATES];
