@@ -25,6 +25,8 @@ typedef enum _AMIIGO_CMD {
     AMIIGO_CMD_I2C_WRITE,     // Write to i2c address and register
     AMIIGO_CMD_RENAME,        // Rename the WED
     AMIIGO_CMD_TAG,           // Write a tag
+    AMIIGO_CMD_TEST_SEQ,      // Accel test sequence command
+    AMIIGO_CMD_EXTSTATUS,     // Extended status
 } AMIIGO_CMD;
 
 #define MAX_DEV_COUNT   10    // Maximum number of devices to work with
@@ -35,6 +37,7 @@ typedef struct amiigo_config {
     WEDConfigName name;          // WED name
     WEDMaintLED maint_led;       // Blink command
     WEDConfigGeneral general;    // For tags
+    uint8 test_mode;             // accel test mode
     // Device and interface to use
     int count_dst;
     char * dst[MAX_DEV_COUNT];

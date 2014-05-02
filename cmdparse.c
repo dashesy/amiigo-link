@@ -72,6 +72,10 @@ int parse_command(const char * szName) {
         g_cmd = AMIIGO_CMD_RENAME;
     } else if (strcasecmp(szName, "tag") == 0) {
         g_cmd = AMIIGO_CMD_TAG;
+    } else if (strcasecmp(szName, "test_seq") == 0) {
+        g_cmd = AMIIGO_CMD_TEST_SEQ;
+    } else if (strcasecmp(szName, "extstatus") == 0) {
+        g_cmd = AMIIGO_CMD_EXTSTATUS;
     } else {
         fprintf(stderr, "Invalid command (%s)!\n", szName);
         return -1;
@@ -251,6 +255,15 @@ int set_config_pairs(const char * szParam, const char * szVal) {
             return -1;
         }
         strcpy(&g_cfg.name.name[0], szVal);
+    }
+    // ---------------- mode ---------------------
+    else if (strcasecmp(szParam, "mode") == 0) {
+        if (parse_mode(szVal))
+            return -1;
+    }
+    // ----------- accel test mode ---------------
+    else if (strcasecmp(szParam, "test_mode") == 0) {
+        g_cfg.test_mode = (uint8_t) val;
     }
     // ---------------- tag ---------------------
     else if (strcasecmp(szParam, "tag") == 0) {

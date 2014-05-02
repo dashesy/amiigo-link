@@ -98,6 +98,14 @@ int exec_command(amdev_t * dev) {
         dev->state = STATE_COUNT; // Done with command
         return exec_tag(dev->sock);
         break;
+    case AMIIGO_CMD_TEST_SEQ:
+        dev->state = STATE_COUNT; // Done with command
+        return exec_test_seq(dev->sock);
+        break;
+    case AMIIGO_CMD_EXTSTATUS:
+        dev->state = STATE_EXTSTATUS;
+        return exec_extstatus(dev->sock);
+        break;
     default:
         return 0;
         break;
@@ -141,6 +149,8 @@ void show_usage_screen(void) {
             "       resetconfigs: set all configs to default\n"
             "       rename: rename the device\n"
             "       tag: set a tag\n"
+            "       test_seq: set test sequence mode to test_mode\n"
+            "       extstatus: read extended status\n"
             "  --mode fast|slow|sleep\n"
             "    Switch to slow or fast mode after tag\n"
             "  --input filename|param1=val1[,...]\n"
@@ -157,7 +167,7 @@ void show_usage_screen(void) {
             "  parameters in a file are in the form of <key> <value> on each line\n"
             "  parameters on a command line are in the form of <key>=<value> and are separated by comma.\n"
             "  light sensor parameters: ls_fast_interval, ls_slow_interval, ls_duration, ls_debug, ls_flags, ls_movement\n"
-            "  accelerometer parameters: accel_slow_rate, accel_fast_rate, accel_sleep_rate\n"
+            "  accelerometer parameters: accel_slow_rate, accel_fast_rate, accel_sleep_rate, test_mode, mode\n"
             "Input Output: (optional) \n"
             "  If running download command, will be taken as output file\n"
             "  Otherwise will be taken as input file name or line sequence\n"

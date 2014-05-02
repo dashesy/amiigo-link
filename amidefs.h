@@ -121,9 +121,20 @@ typedef struct {
 } PACKED WEDStatus;
 
 ///////////////////////////////////////////////////////////////////////////////
-// Build
+// Extended Status (use mainly for debugging)
 
-//This command returns a Ascii sting of the date and time of the build.
+#define  EXTSTATUS_LOG_READY        0x00000001
+
+// Top-level struct for reading characteristic UUID AMI_UUID(WED_UUID_CONFIG)
+typedef struct {
+	uint32 status; // extended status
+
+	// current rates
+	struct WEDCFG wedcfg;
+
+	// pulse durations
+	uint8 pulse_durations[RATES];
+} PACKED WEDCurrentConfig;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Configuration
@@ -228,6 +239,7 @@ typedef enum {
 	WED_MAINT_BLINK_LED,    // blink USER
 	WED_MAINT_SYSTEM_LED,   // Enable system LED
 	WED_DEEP_SLEEP,         // turn off until hard double tap.
+	WED_TEST_SEQUENCE,      // set test sequence command to on or off
 } PACKED WED_MAINT_CMD;
 
 typedef struct {
@@ -253,6 +265,7 @@ typedef struct {
 		WEDMaintTag tag;
 		WEDMaintLED led;
 		WEDMMaintSystemLED sysled;
+		uint8 mode;
 	};
 } PACKED WEDConfigMaint;
 

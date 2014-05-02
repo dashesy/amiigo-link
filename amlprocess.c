@@ -383,7 +383,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     return 0;
 }
 
-// Set device status
+// device status
 int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     if (buflen < sizeof(WEDStatus))
         return -1;
@@ -428,6 +428,45 @@ int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
         printf(" (Rec) ");
     printf("\n");
 
+    return 0;
+}
+
+// Extended device status
+int process_extstatus(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
+    dev->state = STATE_COUNT;
+    if (buflen < sizeof(WEDCurrentConfig) + 1)
+        return -1;
+    uint8_t * pdu = &buf[1];
+    WEDCurrentConfig extstatus;
+    memcpy(&extstatus, &pdu[0], sizeof(extstatus));
+
+    const char log_names[LogNum][10] = {"Accel", "Oxygen", "Temp"};
+    const char rate_names[RATES][10] = {"Slow", "Fast", "Sleep"};
+    int i, j;
+
+    // title of rates
+    for (i = 0; i < LogNum; ++i)
+        printf("\t%s", log_names[i]);
+    printf("\n");
+
+    for (j = 0; j < RATES; ++j) {
+        printf("%s\t", rate_names[j]);
+        for (i = 0; i < LogNum; ++i) {
+            printf("%u\t", extstatus.wedcfg.rates[j][j]);
+        }
+        printf("\n");
+    }
+
+    printf("Pulse capture durations: ");
+    for (i = 0; i < RATES; ++i)
+        printf("%s: %u\t", rate_names[i], extstatus.pulse_durations[i]);
+
+    printf("Extended status: ");
+
+    if (extstatus.status & EXTSTATUS_LOG_READY)
+        printf(" (log ready) ");
+
+    printf("\n");
     return 0;
 }
 
@@ -592,6 +631,10 @@ int process_data(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
         case STATE_I2C:
             // i2c result
             ret = process_debug_i2c(dev, buf, buflen);
+            break;
+        case STATE_EXTSTATUS:
+            // extended status result
+            ret = process_extstatus(dev, buf, buflen);
             break;
         default:
             dump_buffer(buf, buflen);

@@ -38,6 +38,20 @@ int exec_status(int sock) {
     return ret;
 }
 
+// Read the extended status
+int exec_extstatus(int sock) {
+    int ret;
+
+    uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    // Now read for status
+    ret = exec_read(sock, handle);
+
+    return ret;
+}
+
 // Start firmware update procedure
 int exec_fwupdate(int sock) {
     int ret;
@@ -131,6 +145,29 @@ int exec_configaccel(int sock) {
     config.accel = g_cfg.config_accel;
 
     int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.accel));
+    if (ret)
+        return -1;
+
+    return 0;
+}
+
+// Switch accel log sequence mode (testing mode log accel count instead of accel values)
+int exec_test_seq(int sock) {
+
+    uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    WEDConfigMaint config_maint;
+    memset(&config_maint, 0, sizeof(config_maint));
+    config_maint.command = WED_TEST_SEQUENCE;
+    config_maint.mode = g_cfg.test_mode;
+    WEDConfig config;
+    memset(&config, 0, sizeof(config));
+    config.config_type = WED_CFG_MAINT;
+    config.maint = config_maint;
+
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.maint));
     if (ret)
         return -1;
 

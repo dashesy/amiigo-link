@@ -20,6 +20,7 @@ typedef enum _DISCOVERY_STATE {
     STATE_FWSTATUS,
     STATE_FWSTATUS_WAIT,
     STATE_I2C,
+    STATE_EXTSTATUS,
 
     STATE_COUNT, // This must be the last
 } DISCOVERY_STATE;
