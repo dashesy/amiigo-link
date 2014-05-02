@@ -452,7 +452,7 @@ int process_extstatus(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     for (j = 0; j < RATES; ++j) {
         printf("%s\t", rate_names[j]);
         for (i = 0; i < LogNum; ++i) {
-            printf("%u\t", extstatus.wedcfg.rates[j][j]);
+            printf("%u\t", extstatus.wedcfg.rates[j][i]);
         }
         printf("\n");
     }
@@ -461,7 +461,7 @@ int process_extstatus(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     for (i = 0; i < RATES; ++i)
         printf("%s: %u\t", rate_names[i], extstatus.pulse_durations[i]);
 
-    printf("Extended status: ");
+    printf("\nExtended status: ");
 
     if (extstatus.status & EXTSTATUS_LOG_READY)
         printf(" (log ready) ");
