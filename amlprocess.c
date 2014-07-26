@@ -93,6 +93,36 @@ void add_accel_line(FILE * logFile, const WEDLogAccel * logAccel) {
     }
 }
 
+uint8 cmpNbits(int16 diff) {
+
+    uint8 v = (diff < 0) ? ~diff : diff;
+    uint8 nbits = 1;
+    while (v) {
+        nbits++;
+        v >>= 1;
+    }
+    return nbits;
+}
+
+int8 decode_accel(int8 old_accel, int8 diff, uint8 nbits) {
+    int8 accel = old_accel + diff; // Yes this may result in integer overflow!
+    int16 diff16 = accel - old_accel;
+    uint8 enc_nbits = cmpNbits(diff16);
+    if (enc_nbits > nbits) {
+        // some packet must be lost! try to recover
+        if (enc_nbits > 6) {
+            if (old_accel < 0 && diff < 0)
+                accel = -128;
+            else if (old_accel > 0 && diff > 0)
+                accel = 127;
+        } else {
+            accel = old_accel;
+        }
+    }
+
+    return accel;
+}
+
 // Continue downloading packets
 int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     int i;
@@ -342,7 +372,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
                     uint8 i;
                     for (i = 0; i < 3; i++) {
                         int8 diff = cmpGetBits(&gb, nbits);
-                        dev->logAccel.accel[i] += diff;
+                        dev->logAccel.accel[i] = decode_accel(dev->logAccel.accel[i], diff, nbits);
                     }
                     add_accel_line(dev->logFile, &dev->logAccel);
                 }
