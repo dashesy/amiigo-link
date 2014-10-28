@@ -500,7 +500,7 @@ int process_extstatus(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     uint8 mem_id = (extstatus.status & EXTSTATUS_MEM_ID_MASK) >> EXTSTATUS_MEM_ID_SHIFT;
     uint8 ver = (extstatus.status & EXTSTATUS_VER_MASK) >> EXTSTATUS_VER_SHIFT;
 
-    printf("mem: %d rev: %d.%d\n", mem_id, ver / 10, ver % 10);
+    printf("mem: %d rev: %d.%d\n", mem_id, ver / 10 + 1, ver % 10);
     return 0;
 }
 
