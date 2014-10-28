@@ -124,6 +124,10 @@ typedef struct {
 // Extended Status (use mainly for debugging)
 
 #define  EXTSTATUS_LOG_READY        0x0001
+#define  EXTSTATUS_MEM_ID_SHIFT     1
+#define  EXTSTATUS_MEM_ID_MASK      0x0006
+#define  EXTSTATUS_VER_SHIFT        4
+#define  EXTSTATUS_VER_MASK         0x00F0
 
 // Top-level struct for reading characteristic UUID AMI_UUID(WED_UUID_CONFIG)
 typedef struct {
@@ -202,6 +206,7 @@ enum {
 
 #define CONFIGLS_FLAGS_START_NOW 0x80
 #define CONFIGLS_FLAGS_ABORT     0x40
+#define CONFIGLS_FLAGS_POWER     0x20
 
 typedef struct {
 	// Samples will be taken at the above rate for 'duration' seconds
@@ -240,6 +245,9 @@ typedef enum {
 	WED_MAINT_SYSTEM_LED,   // Enable system LED
 	WED_DEEP_SLEEP,         // turn off until hard double tap.
 	WED_TEST_SEQUENCE,      // set test sequence command to on or off
+	WED_MAINT_RF_TEST,      // Start Radio Test
+	WED_MAINT_MFGR_TEST,    // Re-Start Mafufacturing test cycle.
+
 } PACKED WED_MAINT_CMD;
 
 typedef struct {
@@ -252,6 +260,14 @@ typedef struct {
 	uint8 speed;     // 1 - 3 in sec
 	uint8 duration;  // how long to stay in this state in sec. 0 will cancel an existing duration.
 } PACKED WEDMaintLED;
+
+
+// This command will auto tetminate the connection before returning.
+// App will not be able to restablish the conection until the RF test has compleated.
+typedef struct {
+	uint8 test;      // test number from 1 to 9
+	uint8 duration;  // duration in counts for each full cycle of sequence
+} PACKED APPMaintRFTest;
 
 typedef struct {
 	uint8 enable;       // set to non-zero to enable the on board system LED

@@ -109,6 +109,7 @@ int8 decode_accel(int8 old_accel, int8 diff, uint8 nbits) {
     int16 diff16 = accel - old_accel;
     uint8 enc_nbits = cmpNbits(diff16);
     if (enc_nbits > nbits) {
+        printf("err: %d > %d (%d -> %d)\n", enc_nbits, nbits, old_accel, accel);
         // some packet must be lost! try to recover
         if (enc_nbits > 6) {
             if (old_accel < 0 && diff < 0)
@@ -496,7 +497,10 @@ int process_extstatus(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     if (extstatus.status & EXTSTATUS_LOG_READY)
         printf(" (log ready) ");
 
-    printf("\n");
+    uint8 mem_id = (extstatus.status & EXTSTATUS_MEM_ID_MASK) >> EXTSTATUS_MEM_ID_SHIFT;
+    uint8 ver = (extstatus.status & EXTSTATUS_VER_MASK) >> EXTSTATUS_VER_SHIFT;
+
+    printf("mem: %d rev: %d.%d\n", mem_id, ver / 10, ver % 10);
     return 0;
 }
 
