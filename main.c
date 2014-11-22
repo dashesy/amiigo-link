@@ -194,7 +194,7 @@ static void do_command_line(int argc, char * const argv[]) {
               { "full", 0, 0, 'a' },
               { "compressed", 0, 0, 'p'},
               { "raw", 0, 0, 'r'},
-              { "apped", 0, 0, 'A' },
+              { "append", 0, 0, 'A' },
               { "lescan", 0, 0, 's'  },
               { "i", 1, 0, 'i' },
               { "adapter", 1, 0, 'i' },
