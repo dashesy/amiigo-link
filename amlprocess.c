@@ -64,7 +64,10 @@ FILE * log_file_open(amdev_t * dev) {
         strftime(g_szBaseName, 256, "Log_%Y-%m-%d-%H-%M-%S", localtime(&now));
 
     // Use other metadata to distinguish each log
-    sprintf(szFullName, "%s_%d.log", g_szBaseName, dev->dev_idx);
+    if (strchr(g_szBaseName, '.'))
+        sprintf(szFullName, "%s", g_szBaseName);
+    else
+        sprintf(szFullName, "%s_%d.log", g_szBaseName, dev->dev_idx);
     printf("\ndownloading %s ...\n", szFullName);
 
     FILE * fp = fopen(szFullName, g_opt.append ? "a" : "w");
