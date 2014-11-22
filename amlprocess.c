@@ -216,7 +216,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             logLSConfig.gain = buf[payload + 4];
             logLSConfig.log_size = buf[payload + 5];
             fprintf(dev->logFile, "[\"lightsensor_config\",[\"dac_on\",%u],"
-                    "[\"level_led\",%u],[\"flags\",%u],[\"gain\",%u],[\"log_size\",%u]]\n", logLSConfig.dac_on, logLSConfig.flags,
+                    "[\"flags\",%u],[\"level_led\",%u],[\"gain\",%u],[\"log_size\",%u]]\n", logLSConfig.dac_on, logLSConfig.flags,
                     logLSConfig.level_led, logLSConfig.gain, logLSConfig.log_size);
             break;
         case WED_LOG_LS_DATA:
