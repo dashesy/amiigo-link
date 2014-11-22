@@ -67,7 +67,7 @@ FILE * log_file_open(amdev_t * dev) {
     sprintf(szFullName, "%s_%d.log", g_szBaseName, dev->dev_idx);
     printf("\ndownloading %s ...\n", szFullName);
 
-    FILE * fp = fopen(szFullName, "w");
+    FILE * fp = fopen(szFullName, g_opt.append ? "a" : "w");
     return fp;
 }
 

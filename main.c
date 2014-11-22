@@ -128,6 +128,7 @@ void show_usage_screen(void) {
             "    Example: --b 90:59:AF:04:32:82\n"
             "    Use --lescan to find the UUID list\n"
             "  --compressed Leave logs in compressed form.\n"
+            "  --append append to end of file.\n"
             "  --raw Download logs in raw format (no compression).\n"
             "  -l, --live Live download as a stream.\n"
             "    Hit `q` to end the stream.\n"
@@ -193,6 +194,7 @@ static void do_command_line(int argc, char * const argv[]) {
               { "full", 0, 0, 'a' },
               { "compressed", 0, 0, 'p'},
               { "raw", 0, 0, 'r'},
+              { "apped", 0, 0, 'A' },
               { "lescan", 0, 0, 's'  },
               { "i", 1, 0, 'i' },
               { "adapter", 1, 0, 'i' },
@@ -253,6 +255,10 @@ static void do_command_line(int argc, char * const argv[]) {
 
         case 'r':
             g_opt.raw = 1;
+            break;
+
+        case 'A':
+            g_opt.append = 1;
             break;
 
         case 'i':

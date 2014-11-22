@@ -16,6 +16,7 @@ typedef struct _aml_options {
     int verbosity;        // verbose output
     int live;             // if live output is needed
     int console;          // if should print accel to console
+    int append;           // if should append instead of creating new files
     int full;             // If full characteristcs should be discovered
 } aml_options_t;
 
