@@ -456,12 +456,15 @@ static inline uint8 WEDLogAccelCmpSize(void* buf) {
 #define LSCONF_LAST      0xFF // Last log (all data will be 0xFF)
 #define LSCONF_LED_MASK  0x70 // config led number
 
+#define LSCONF_FLAGS_MANUAL 0x01 // If this is a manual capture
+#define LSCONF_FLAGS_WORN   0x02 // If last know state is worn
+
 // This is generated once at the beginning and end of each interval.
 typedef struct {
 	uint8 type; // WED_LOG_LS_CONFIG
 
 	uint8 dac_on;    // DAC setting for led
-	uint8 reserved;
+	uint8 flags;     // LSCONF_FLAGS_*
 	uint8 level_led; // LED driver setting for led
 	uint8 gain;      // calibrated gain value for led
 	uint8 log_size;  // log state bifield LSCONF_*
