@@ -146,6 +146,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     WEDLogTemp logTemp;
     WEDLogLSConfig logLSConfig;
     WEDLogCount logCount;
+    WEDLogEvent logEvent;
 
     // TODO: check packet sizes
     // TODO: check data integrity
@@ -180,6 +181,14 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
 
             fprintf(dev->logFile, "[\"timestamp\",[%u,%u]]\n", dev->logTime.timestamp, dev->logTime.flags);
 
+            break;
+        case WED_LOG_EVENT:
+            packet_len = sizeof(logEvent);
+            if (dev->logFile == NULL)
+                dev->logFile = log_file_open(dev);
+            logEvent.type = log_type;
+            logEvent.flags = buf[payload + 1];
+            fprintf(dev->logFile, "[\"event\",[\"flags\",%u]]\n", logEvent.flags);
             break;
         case WED_LOG_COUNT:
             packet_len = sizeof(logCount);
