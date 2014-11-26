@@ -127,7 +127,7 @@ typedef struct {
 #define  EXTSTATUS_MEM_ID_SHIFT     1
 #define  EXTSTATUS_MEM_ID_MASK      0x0006
 #define  EXTSTATUS_VER_SHIFT        4
-#define  EXTSTATUS_VER_MASK         0x00F0
+#define  EXTSTATUS_VER_MASK         0x0FF0
 
 // Top-level struct for reading characteristic UUID AMI_UUID(WED_UUID_CONFIG)
 typedef struct {
