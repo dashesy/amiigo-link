@@ -15,6 +15,7 @@ typedef int8_t int8;
 typedef uint8_t uint8;
 typedef int16_t int16;
 typedef uint16_t uint16;
+typedef int32_t int32;
 typedef uint32_t uint32;
 #if defined(__GNUC__)
 #include <stdbool.h>
@@ -375,6 +376,7 @@ typedef enum {
 	WED_LOG_TAG,
 	WED_LOG_ACCEL_CMP,
 	WED_LOG_COUNT,
+	WED_LOG_EVENT,
 } WED_LOG_TYPE;
 
 #define WED_TAG_BITS 0x1F
@@ -520,6 +522,17 @@ typedef struct {
 	uint32 timestamp;       // ticks since reboot until log is ready
 } PACKED WEDLogCount;
 
+#define EVENT_FLAGS_TAP_D      0x01 // double-tap
+#define EVENT_FLAGS_TAP_X      0x02 // x
+#define EVENT_FLAGS_TAP_Z      0x04 // y
+#define EVENT_FLAGS_TAP_ZD     (EVENT_FLAGS_TAP_D | EVENT_FLAGS_TAP_Z)
+#define EVENT_FLAGS_TAP_XD     (EVENT_FLAGS_TAP_D | EVENT_FLAGS_TAP_X)
+#define EVENT_FLAGS_TAP_MASK   0x07 // bits that specify tap events
+
+typedef struct {
+	uint8 type;     // WED_LOG_EVENT
+	uint8 flags;    // EVENT_FLAGS_*
+} PACKED WEDLogEvent;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Firmware Update
