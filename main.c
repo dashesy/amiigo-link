@@ -31,7 +31,7 @@ extern void char_init(void);
 extern char g_szBaseName[256];
 
 int g_amver_major = 1;
-int g_amver_minor = 1;
+int g_amver_minor = 2;
 
 // TODO: have option of multiple sources
 char g_src[512] = "hci0"; // Device to connect from
