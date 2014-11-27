@@ -154,7 +154,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     int packet_len;
     int payload = 3; // Payload starting position
 
-    WED_LOG_TYPE log_type = buf[payload] & 0x0F;
+    WED_LOG_TYPE log_type = buf[payload] & WED_TAG_BITS;
     while (payload < buflen) {
         if (log_type != WED_LOG_ACCEL_CMP)
             dev->read_logs++; // Total number of log points downloaded so far
