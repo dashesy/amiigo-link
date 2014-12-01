@@ -407,7 +407,7 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
 
         //printf("Type: %u, len: %u, total: %u\n", log_type, packet_len, buflen);
         if (payload < buflen)
-            log_type = buf[payload] & 0x0F;
+            log_type = buf[payload] & WED_TAG_BITS;
     } // end while (payload < buflen
 
     if (!g_opt.live) {
