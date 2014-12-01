@@ -167,7 +167,7 @@ void show_usage_screen(void) {
             "Parameters:\n"
             "  parameters in a file are in the form of <key> <value> on each line\n"
             "  parameters on a command line are in the form of <key>=<value> and are separated by comma.\n"
-            "  light sensor parameters: ls_fast_interval, ls_slow_interval, ls_sleep_interval, ls_duration, ls_debug, ls_flags, ls_movement\n"
+            "  light sensor parameters: ls_fast_interval, ls_slow_interval, ls_sleep_interval, ls_duration, ls_fast_duration, ls_slow_duration, ls_sleep_duration, ls_debug, ls_flags, ls_movement\n"
             "  accelerometer parameters: accel_slow_rate, accel_fast_rate, accel_sleep_rate, test_mode, mode\n"
             "Input Output: (optional) \n"
             "  If running download command, will be taken as output file\n"
