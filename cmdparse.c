@@ -212,6 +212,9 @@ int set_config_pairs(const char * szParam, const char * szVal) {
     } else if (strcasecmp(szParam, "ls_slow_interval") == 0) {
         // Seconds between samples in slow mode
         g_cfg.config_ls.slow_interval = (uint16_t) val;
+    } else if (strcasecmp(szParam, "ls_sleep_interval") == 0) {
+        // Seconds between samples in sleep mode
+        g_cfg.config_ls.sleep_interval = (uint16_t) val;
     } else if (strcasecmp(szParam, "ls_duration") == 0) {
         g_cfg.config_ls.manual_duration = (uint8_t) val;
     } else if (strcasecmp(szParam, "ls_fast_duration") == 0) {
