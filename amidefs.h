@@ -529,6 +529,8 @@ typedef struct {
 #define EVENT_FLAGS_TAP_XD     (EVENT_FLAGS_TAP_D | EVENT_FLAGS_TAP_X)
 #define EVENT_FLAGS_TAP_MASK   0x07 // bits that specify tap events
 
+#define EVENT_FLAGS_SU         0x80 // If set EVENT_SFLAGS_* are effective instead of EVENT_FLAGS_*
+
 typedef struct {
 	uint8 type;     // WED_LOG_EVENT
 	uint8 flags;    // EVENT_FLAGS_*
