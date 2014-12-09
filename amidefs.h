@@ -522,14 +522,15 @@ typedef struct {
 	uint32 timestamp;       // ticks since reboot until log is ready
 } PACKED WEDLogCount;
 
-#define EVENT_FLAGS_TAP_D      0x01 // double-tap
-#define EVENT_FLAGS_TAP_X      0x02 // x
-#define EVENT_FLAGS_TAP_Z      0x04 // y
+#define EVENT_FLAGS_FN         0x03 // 4 functionalities 00:tap-fall
+#define EVENT_FLAGS_TAP_D      0x04 // double-tap
+#define EVENT_FLAGS_TAP_X      0x08 // x
+#define EVENT_FLAGS_TAP_Z      0x10 // z
 #define EVENT_FLAGS_TAP_ZD     (EVENT_FLAGS_TAP_D | EVENT_FLAGS_TAP_Z)
 #define EVENT_FLAGS_TAP_XD     (EVENT_FLAGS_TAP_D | EVENT_FLAGS_TAP_X)
-#define EVENT_FLAGS_TAP_MASK   0x07 // bits that specify tap events
+#define EVENT_FLAGS_TAP_MASK   (EVENT_FLAGS_TAP_D | EVENT_FLAGS_TAP_Z | EVENT_FLAGS_TAP_X)
+#define EVENT_FLAGS_FALL       0x20
 
-#define EVENT_FLAGS_SU         0x80 // If set EVENT_SFLAGS_* are effective instead of EVENT_FLAGS_*
 
 typedef struct {
 	uint8 type;     // WED_LOG_EVENT
