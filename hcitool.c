@@ -100,9 +100,8 @@ static int check_report_filter(uint8_t procedure, le_advertising_info *info) {
 
 static void eir_parse_name(uint8_t *eir, size_t eir_len, char *buf,
         size_t buf_len) {
-    size_t offset;
+    size_t offset = 0;
 
-    offset = 0;
     while (offset < eir_len) {
         uint8_t field_len = eir[0];
         size_t name_len;
@@ -119,7 +118,7 @@ static void eir_parse_name(uint8_t *eir, size_t eir_len, char *buf,
         case EIR_NAME_COMPLETE:
             name_len = field_len - 1;
             if (name_len > buf_len)
-                goto failed;
+                name_len = buf_len - 1;
 
             memcpy(buf, &eir[2], name_len);
             return;
@@ -130,6 +129,40 @@ static void eir_parse_name(uint8_t *eir, size_t eir_len, char *buf,
     }
 
     failed: snprintf(buf, buf_len, "(unknown)");
+}
+
+static void eir_parse_uuid(uint8_t *eir, size_t eir_len, char *buf,
+        size_t buf_len) {
+    size_t offset = 0;
+
+    while (offset < eir_len) {
+        uint8_t field_len = eir[0];
+        size_t uuid_len;
+
+        /* Check for the end of EIR */
+        if (field_len == 0)
+            break;
+
+        if (offset + field_len > eir_len)
+            goto failed;
+
+        switch (eir[1]) {
+        case EIR_UUID128_ALL:
+            uuid_len = field_len - 1;
+            if (uuid_len != 16 || buf_len < 2 * uuid_len)
+                goto failed;
+            uint8_t * ba = &eir[2];
+            sprintf(buf, "%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X",
+                    ba[15], ba[14], ba[13], ba[12], ba[11], ba[10], ba[9], ba[8], ba[7], ba[6], ba[5], ba[4], ba[3], ba[2], ba[1], ba[0]);
+            return;
+        }
+
+        offset += field_len + 1;
+        eir += field_len + 1;
+    }
+
+    failed:
+    memset(buf, 0, buf_len);
 }
 
 static int print_advertising_devices(int dd, uint8_t filter_type) {
@@ -187,13 +220,15 @@ static int print_advertising_devices(int dd, uint8_t filter_type) {
         info = (le_advertising_info *) (meta->data + 1);
         if (check_report_filter(filter_type, info)) {
             char name[30];
+            char uuid[16*2 + 1];
 
             memset(name, 0, sizeof(name));
 
             ba2str(&info->bdaddr, addr);
             eir_parse_name(info->data, info->length, name, sizeof(name) - 1);
+            eir_parse_uuid(info->data, info->length, uuid, sizeof(uuid) - 1);
 
-            printf("%s %s\n", addr, name);
+            printf("%s %s %s\n", addr, name, uuid);
         }
     }
 
