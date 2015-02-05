@@ -359,6 +359,9 @@ int main(int argc, char **argv) {
     int ret, i;
     time_t start_time[MAX_DEV_COUNT], stop_time[MAX_DEV_COUNT], download_time[MAX_DEV_COUNT];
 
+    // do not buffer output
+    setbuf(stdout, NULL);
+
     // Initialize the characteristics
     char_init();
     // Initialize the command configs
