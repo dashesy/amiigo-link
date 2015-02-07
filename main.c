@@ -243,6 +243,7 @@ static void do_command_line(int argc, char * const argv[]) {
 
         case 'V':
             show_version();
+            exit(0);
             break;
 
         case 'a':
