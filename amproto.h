@@ -18,6 +18,7 @@ int exec_debug_i2c(int sock);
 int exec_download(int sock);
 int exec_configls(int sock);
 int exec_configaccel(int sock);
+int exec_configtemp(int sock);
 int exec_test_seq(int sock);
 int exec_blink(int sock);
 int exec_deepsleep(int sock);

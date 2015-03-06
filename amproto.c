@@ -133,6 +133,25 @@ int exec_configls(int sock) {
     return 0;
 }
 
+// Start configuration of temperature sensor
+int exec_configtemp(int sock) {
+
+    uint16_t handle = g_char[AMIIGO_UUID_CONFIG].value_handle;
+    if (handle == 0)
+        return -1; // Not ready yet
+
+    WEDConfig config;
+    memset(&config, 0, sizeof(config));
+    config.config_type = WED_CFG_TEMP;
+    config.temp = g_cfg.config_temp;
+
+    int ret = exec_write(sock, handle, (uint8_t *) &config, sizeof(config.config_type) + sizeof(config.accel));
+    if (ret)
+        return -1;
+
+    return 0;
+}
+
 // Start configuration of accel sensors
 int exec_configaccel(int sock) {
 

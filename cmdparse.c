@@ -63,6 +63,8 @@ int parse_command(const char * szName) {
         g_cmd = AMIIGO_CMD_CONFIGLS;
     } else if (strcasecmp(szName, "configaccel") == 0) {
         g_cmd = AMIIGO_CMD_CONFIGACCEL;
+    } else if (strcasecmp(szName, "configtemp") == 0) {
+        g_cmd = AMIIGO_CMD_CONFIGTEMP;
     } else if (strcasecmp(szName, "blink") == 0) {
         g_cmd = AMIIGO_CMD_BLINK;
     } else if (strcasecmp(szName, "deepsleep") == 0) {
@@ -250,6 +252,17 @@ int set_config_pairs(const char * szParam, const char * szVal) {
                 (uint32_t) val);
     } else if (strcasecmp(szParam, "accel_sleep_rate") == 0) {
         g_cfg.config_accel.sleep_rate = WEDConfigRateParam(
+                (uint32_t) val);
+    }
+    // ---------------- Temperature ---------------------
+    else if (strcasecmp(szParam, "temp_slow_rate") == 0) {
+        g_cfg.config_temp.slow_rate = WEDConfigRateParam(
+                (uint32_t) val);
+    } else if (strcasecmp(szParam, "temp_fast_rate") == 0) {
+        g_cfg.config_temp.fast_rate = WEDConfigRateParam(
+                (uint32_t) val);
+    } else if (strcasecmp(szParam, "temp_sleep_rate") == 0) {
+        g_cfg.config_temp.sleep_rate = WEDConfigRateParam(
                 (uint32_t) val);
     }
     // ---------------- rename ---------------------

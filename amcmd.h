@@ -20,6 +20,7 @@ typedef enum _AMIIGO_CMD {
     AMIIGO_CMD_DOWNLOAD,      // Download all the logs
     AMIIGO_CMD_CONFIGLS,      // Configure light sensors
     AMIIGO_CMD_CONFIGACCEL,   // Configure acceleration sensors
+    AMIIGO_CMD_CONFIGTEMP,    // Configure temperature sensor
     AMIIGO_CMD_BLINK,         // Configure a single blink
     AMIIGO_CMD_DEEPSLEEP,     // Go to deep sleep until double tap
     AMIIGO_CMD_I2C_READ,      // Read i2c address and register
@@ -35,6 +36,7 @@ typedef struct amiigo_config {
     WEDDebugI2CCmd i2c;          // i2c debugging
     WEDConfigLS config_ls;       // Light configuration
     WEDConfigAccel config_accel; // Acceleration sensors configuration
+    WEDConfigTemp config_temp;   // Temperature sensor configuration
     WEDConfigName name;          // WED name
     WEDMaintLED maint_led;       // Blink command
     WEDConfigGeneral general;    // For tags

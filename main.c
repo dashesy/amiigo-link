@@ -32,7 +32,7 @@ extern void char_init(void);
 extern char g_szBaseName[256];
 
 int g_amver_major = 1;
-int g_amver_minor = 3;
+int g_amver_minor = 4;
 
 // TODO: have option of multiple sources
 char g_src[512] = "hci0"; // Device to connect from
@@ -67,6 +67,10 @@ int exec_command(amdev_t * dev) {
     case AMIIGO_CMD_CONFIGACCEL:
         dev->state = STATE_COUNT; // Done with command
         return exec_configaccel(dev->sock);
+        break;
+    case AMIIGO_CMD_CONFIGTEMP:
+        dev->state = STATE_COUNT; // Done with command
+        return exec_configtemp(dev->sock);
         break;
     case AMIIGO_CMD_BLINK:
         dev->state = STATE_COUNT; // Done with command
@@ -144,6 +148,7 @@ void show_usage_screen(void) {
             "       download: download the logs\n"
             "       configls: configure light sensor\n"
             "       configaccel: configure acceleration sensors\n"
+            "       configtemp: configure temperature sensor\n"
             "       blink: configure blink LED\n"
             "       deepsleep: go to deep sleep and only wake on hard double tap\n"
             "       resetlogs: reset buffered logs\n"
@@ -170,6 +175,7 @@ void show_usage_screen(void) {
             "  parameters on a command line are in the form of <key>=<value> and are separated by comma.\n"
             "  light sensor parameters: ls_fast_interval, ls_slow_interval, ls_sleep_interval, ls_duration, ls_fast_duration, ls_slow_duration, ls_sleep_duration, ls_debug, ls_flags, ls_movement\n"
             "  accelerometer parameters: accel_slow_rate, accel_fast_rate, accel_sleep_rate, test_mode, mode\n"
+            "  temperature parameters: temp_slow_rate, temp_fast_rate, temp_sleep_rate\n"
             "Input Output: (optional) \n"
             "  If running download command, will be taken as output file\n"
             "  Otherwise will be taken as input file name or line sequence\n"
