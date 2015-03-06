@@ -1,3 +1,7 @@
+/*
+ * Amiigo Packet definitions
+ * @copyright Amiigo Inc.
+ */
 #ifndef AMIDEFS_H
 #define AMIDEFS_H
 

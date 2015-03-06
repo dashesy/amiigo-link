@@ -3,6 +3,7 @@
  *
  * @date March 10, 2014
  * @author: dashesy
+ * @copyright Amiigo Inc.
  */
 
 #ifndef FWUPDATE_H

@@ -3,6 +3,7 @@
  *
  * @date March 9, 2014
  * @author: dashesy
+ * @copyright Amiigo Inc.
  */
 
 #ifndef COMMON_H

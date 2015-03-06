@@ -3,6 +3,7 @@
  *
  * @date March 10, 2014
  * @author: dashesy
+ * @copyright Amiigo Inc.
  */
 
 #include <errno.h>

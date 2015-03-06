@@ -3,6 +3,7 @@
  *
  * @date March 14, 2014
  * @author: dashesy
+ * @copyright Amiigo Inc.
  *
  * @notes:
  *

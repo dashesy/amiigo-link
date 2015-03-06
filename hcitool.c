@@ -1,8 +1,7 @@
 /*
  * hcitool.c
  *
- *  Created on: Sep 2, 2013
- *      Author: dashesy
+ *  modified from tool of the same name
  */
 
 #include <errno.h>
