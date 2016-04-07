@@ -376,7 +376,7 @@ int main(int argc, char **argv) {
     cmd_init();
 
     // Amiigo devices to interact with
-    amdev_t devices[2];
+    amdev_t devices[MAX_DEV_COUNT];
     // zero-fill the devices state
     memset(&devices[0], 0, sizeof(devices));
 
