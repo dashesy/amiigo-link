@@ -246,7 +246,7 @@ int do_lescan() {
     if (!strncmp(g_src, "hci", 3)) {
         dev_id = atoi(g_src + 3);
     } else {
-        printf("Adapter %s is unknown, using the default\n", g_src);
+        fprintf(stderr, "Adapter %s is unknown, using the default\n", g_src);
         dev_id = hci_get_route(NULL);
     }
     sock = hci_open_dev(dev_id);
