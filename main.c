@@ -231,6 +231,11 @@ static void do_command_line(int argc, char * const argv[]) {
             printf("unsupported\n");
             break;
 
+        case 'i':
+            if (parse_adapter(optarg))
+                exit(1);
+            break;
+
         case 's':
             do_lescan();
             exit(0);
@@ -267,11 +272,6 @@ static void do_command_line(int argc, char * const argv[]) {
 
         case 'A':
             g_opt.append = 1;
-            break;
-
-        case 'i':
-            if (parse_adapter(optarg))
-                exit(1);
             break;
 
         case 'b':
