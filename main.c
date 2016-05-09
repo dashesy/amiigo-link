@@ -466,7 +466,7 @@ int main(int argc, char **argv) {
         }
 
         // If all devices have their status read, execute the requested command
-        if (dev->status.battery_level > 0 && !dev->state != STATE_COUNT && !dev->started) {
+        if (dev->status.battery_level > 0 && dev->state != STATE_COUNT && !dev->started) {
             // Now that we have status (e.g. number of logs) of all devices
             //  Start execution of the requested command
             ret = exec_command(dev);
