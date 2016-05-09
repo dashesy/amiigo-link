@@ -232,6 +232,8 @@ int set_config_pairs(const char * szParam, const char * szVal) {
         g_cfg.config_ls.flags = (uint8_t) val;
     } else if (strcasecmp(szParam, "ls_movement") == 0) {
         g_cfg.config_ls.movement = (uint8_t) val;
+    } else if (strcasecmp(szParam, "ls_duration_mul") == 0) {
+        g_cfg.config_ls.duration_mul = (uint8_t) val;
     }
     // --------------- Blink ----------------------
     else if (strcasecmp(szParam, "blink_duration") == 0) {

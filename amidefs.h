@@ -220,10 +220,11 @@ typedef struct {
 	uint16 slow_interval;
 	uint16 sleep_interval;
 	uint8 manual_duration;  // duration of each capture in seconds (manual, also used if any duration is 0)
-	uint8 movement;         // average movement level at wich starting a reading is allowed
-	uint8 flags;            // Contol Bits
+	uint8 movement;         // average movement level at which starting a reading is allowed
+	uint8 flags;            // Control Bits
 	uint8 debug;            // Console output debug level, set to 0 for normal operation
 	uint8 durations[RATES]; // duration of each capture in seconds for each rate
+	uint8 duration_mul;     // duration multiplicand
 } PACKED WEDConfigLS;
 
 typedef struct {
