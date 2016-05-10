@@ -343,7 +343,7 @@ static void do_command_line(int argc, char * const argv[]) {
         err = 1;
     }
     if (err) {
-        show_usage_screen();
+        printf("Use --help to get the list of valid commands and options\n");
         exit(1);
     }
 }
