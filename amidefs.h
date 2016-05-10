@@ -23,10 +23,10 @@ typedef int32_t int32;
 typedef uint32_t uint32;
 #if defined(__GNUC__)
 #include <stdbool.h>
-#endif
 #  define PACKED __attribute__((__packed__))
 #else
 #  define PACKED
+#endif
 #endif
 
 #ifdef __cplusplus
