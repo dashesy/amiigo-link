@@ -313,6 +313,10 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
             break;
         case WED_LOG_ACCEL_CMP:
             packet_len = WEDLogAccelCmpSize(&buf[payload]);
+            if (packet_len < 2) {
+                fprintf(stderr, "ACCEL_CMP with invalid length ignored\n");
+                break;
+            }
 
             if (dev->logFile == NULL)
                 dev->logFile = log_file_open(dev);

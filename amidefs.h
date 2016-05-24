@@ -296,8 +296,8 @@ enum {
 	// Turns on automatic data log download via notifications
 	WED_CONFIG_LOG_DL_EN  = (1 << 0),
 
-	// Enables WED_LOG_xxx_CMP compressed formats. Log must be cleared
-	// when setting this from enabled to disabled.
+	// Enables WED_LOG_ACCEL_CMP compressed format.
+	// Log must be cleared when setting this from enabled to disabled.
 	WED_CONFIG_LOG_CMP_EN   = (1 << 1),
 
 	// Log Loopback, bypasses the flash storage.
@@ -444,14 +444,15 @@ static inline uint8 WEDLogAccelCmpSize(void* buf) {
 
 	WEDLogAccelCmp* pkt = buf;
 
-	uint8 bps = 8;
+	uint8 bps;
 	switch ((pkt->count_bits >> 4) & 0x7) {
 	case WED_LOG_ACCEL_CMP_3_BIT: bps = 3*3; break;
 	case WED_LOG_ACCEL_CMP_4_BIT: bps = 4*3; break;
 	case WED_LOG_ACCEL_CMP_5_BIT: bps = 5*3; break;
 	case WED_LOG_ACCEL_CMP_6_BIT: bps = 6*3; break;
 	case WED_LOG_ACCEL_CMP_8_BIT: bps = 8*3; break;
-	case WED_LOG_ACCEL_CMP_STILL: return 2; 
+	case WED_LOG_ACCEL_CMP_STILL: return 2;
+	default: return 0;
 	}
 
 	uint16 bits = ((pkt->count_bits & 0xf) + 1) * bps;
@@ -485,11 +486,8 @@ typedef struct {
 	// A/D readings. There will be 1-3 values present depending on how
 	// many readings were enabled in WEDConfigLS.leds. The order is red,
 	// IR, off, excluding readings that aren't enabled. 
-	// The upper two
-	// bits of val[0] indicate how many values are present: 0=val[0],
-	// 1=val[0]+val[1], 2=val[0]+val[1]+val[2].
 
-	// CNBC: As requesed, this has now changed. The upper 3 bits of the type will determin how long the log entry is.
+	// The upper 3 bits of the type will determine how long the log entry is.
 	// bit 5: is set if we have RED data
 	// bit 6: is set if we have IR data
 	// bit 7: is set if we have OFF data
