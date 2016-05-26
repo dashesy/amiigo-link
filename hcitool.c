@@ -187,6 +187,8 @@ static void eir_parse_amiigo(uint8_t *eir, size_t eir_len) {
                     printf("%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X", ba[0], ba[1], ba[2], ba[3], ba[4], ba[5]);
                 if (mfgr_len > 6)
                     print_status(ba[6]);
+                if (mfgr_len > 7)
+                    printf(" (test %d %s) ", ba[7], ba[7] ? "failed" : "passed");
                 return;
         }
 
