@@ -456,6 +456,8 @@ void print_status(uint8_t status) {
         printf(" (Worn) ");
     if (status & STATUS_RECORDING)
         printf(" (Rec) ");
+    if (status & STATUS_WRISTBAND)
+        printf(" (Wristband) ");
 }
 
 // device status

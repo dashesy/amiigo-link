@@ -97,6 +97,7 @@ struct WEDCFG {
 #define  STATUS_SLEEPMODE     0x10
 #define  STATUS_WORN          0x20
 #define  STATUS_RECORDING     0x40
+#define  STATUS_WRISTBAND     0x80
 
 // Top-level struct for characteristic UUID AMI_UUID(WED_UUID_STATUS)
 typedef struct {
@@ -114,7 +115,8 @@ typedef struct {
 	// bit 4: are we in sleep mode
 	// bit 5: if pox thinks the unit is worn
 	// bit 6: if accel is being recorded
-	uint8 status; 
+	// bit 7: set if this is wristband
+	uint8 status;
 
 	// Current time in WED_TIME_TICKS_PER_SEC
 	uint32 cur_time;
