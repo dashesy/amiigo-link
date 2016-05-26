@@ -15,6 +15,7 @@
 #include "jni/hci_lib.h"
 
 #include "hcitool.h"
+#include "amlprocess.h"
 extern char g_src[512];
 
 static volatile int signal_received = 0;
@@ -164,6 +165,36 @@ static void eir_parse_uuid(uint8_t *eir, size_t eir_len, char *buf,
     memset(buf, 0, buf_len);
 }
 
+static void eir_parse_amiigo(uint8_t *eir, size_t eir_len) {
+    size_t offset = 0;
+
+    while (offset < eir_len) {
+        uint8_t field_len = eir[0];
+        uint8_t mfgr_len;
+
+        /* Check for the end of EIR */
+        if (field_len == 0)
+            break;
+
+        if (offset + field_len > eir_len)
+            break;
+
+        switch (eir[1]) {
+            case 0xFF:
+                mfgr_len = field_len - 1;
+                uint8_t * ba = &eir[2];
+                if (mfgr_len > 5)
+                    printf("%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X", ba[0], ba[1], ba[2], ba[3], ba[4], ba[5]);
+                if (mfgr_len > 6)
+                    print_status(ba[6]);
+                return;
+        }
+
+        offset += field_len + 1;
+        eir += field_len + 1;
+    }
+}
+
 static int print_advertising_devices(int dd, uint8_t filter_type) {
     unsigned char buf[HCI_MAX_EVENT_SIZE], *ptr;
     struct hci_filter nf, of;
@@ -227,7 +258,14 @@ static int print_advertising_devices(int dd, uint8_t filter_type) {
             eir_parse_name(info->data, info->length, name, sizeof(name) - 1);
             eir_parse_uuid(info->data, info->length, uuid, sizeof(uuid) - 1);
 
-            printf("%s %s %s\n", addr, name, uuid);
+            printf("%s %s %s", addr, name, uuid);
+
+            if (strcmp(uuid, "CCA3100078C647859E450887D451317C") == 0) {
+                printf(" Amiigo ");
+                eir_parse_amiigo(info->data, info->length);
+            }
+
+            printf("\n");
         }
     }
 

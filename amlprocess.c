@@ -438,6 +438,26 @@ int process_download(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     return 0;
 }
 
+// Print status
+void print_status(uint8_t status) {
+    if (status & STATUS_UPDATE)
+        printf(" (Updating) ");
+    if (status & STATUS_FASTMODE)
+        printf(" (Fast Mode) ");
+    else if (status & STATUS_SLEEPMODE)
+        printf(" (Sleep Mode) ");
+    else
+        printf(" (Slow Mode) ");
+    if (status & STATUS_CHARGING)
+        printf(" (Charging) ");
+    if (status & STATUS_LS_INPROGRESS)
+        printf(" (Light Capture) ");
+    if (status & STATUS_WORN)
+        printf(" (Worn) ");
+    if (status & STATUS_RECORDING)
+        printf(" (Rec) ");
+}
+
 // device status
 int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
     if (buflen < sizeof(WEDStatus))
@@ -465,22 +485,7 @@ int process_status(amdev_t * dev, uint8_t * buf, ssize_t buflen) {
                 dev->status.num_log_entries, dev->status.battery_level,
                 dev->status.cur_time * 1.0 / WED_TIME_TICKS_PER_SEC, dev->status.reboot_count, tag);
 
-    if (dev->status.status & STATUS_UPDATE)
-        printf(" (Updating) ");
-    if (dev->status.status & STATUS_FASTMODE)
-        printf(" (Fast Mode) ");
-    else if (dev->status.status & STATUS_SLEEPMODE)
-        printf(" (Sleep Mode) ");
-    else
-        printf(" (Slow Mode) ");
-    if (dev->status.status & STATUS_CHARGING)
-        printf(" (Charging) ");
-    if (dev->status.status & STATUS_LS_INPROGRESS)
-        printf(" (Light Capture) ");
-    if (dev->status.status & STATUS_WORN)
-        printf(" (Worn) ");
-    if (dev->status.status & STATUS_RECORDING)
-        printf(" (Rec) ");
+    print_status(dev->status.status);
     printf("\n");
 
     return 0;
